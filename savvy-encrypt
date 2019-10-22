@@ -10,13 +10,11 @@ from ansible.parsing.vault import VaultAES256, VaultSecret
 
 parser = argparse.ArgumentParser(description='Single Ansible Vault Var encrYpter/decrYpter')
 parser.add_argument('-m', '--multi', action='store_true', help='use multiline format')
-parser.add_argument('-i', '--input', default='group_vars/all/vars.yml', help='input file')
 parser.add_argument('-o', '--output', help='output file')
 parser.add_argument('command', help='decrypt, encrypt or edit')
+parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
 args = parser.parse_args()
 
-multi=args.multi
-filename=args.input
 vault_pass=VaultSecret('s3cr3t')
 
 def randomstring(length=16):
@@ -31,7 +29,7 @@ def decrypt(raw):
 
 def print_encrypted_var(name, value):
     encrypted_value=vault.format_vaulttext_envelope(encrypt(value),'AES256')
-    if not multi:
+    if not args.multi:
         print(name+": !vault " +encrypted_value.replace("\n", "\\n"))
     else:
         print(name+": !vault |")
@@ -40,7 +38,7 @@ def print_encrypted_var(name, value):
             print('%s%s' % (indent, line))
 
 
-with open(filename) as inp:
+with open(args.filename) as inp:
     lines = inp.readlines()
 cnt=1
 for line in lines:
