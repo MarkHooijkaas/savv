@@ -1,15 +1,22 @@
 #!/usr/bin/python
 
-filename='group_vars/all/vars.yml'
-
 import sys
 import re
 import random
 import string
+import argparse
 import ansible.parsing.vault as vault
 from ansible.parsing.vault import VaultAES256, VaultSecret
 
-multi=True
+parser = argparse.ArgumentParser(description='Single Ansible Vault Var encrYpter/decrYpter')
+parser.add_argument('-m', '--multi', action='store_true', help='use multiline format')
+parser.add_argument('-i', '--input', default='group_vars/all/vars.yml', help='input file')
+parser.add_argument('-o', '--output', help='output file')
+parser.add_argument('command', help='decrypt, encrypt or edit')
+args = parser.parse_args()
+
+multi=args.multi
+filename=args.input
 vault_pass=VaultSecret('s3cr3t')
 
 def randomstring(length=16):
@@ -32,11 +39,6 @@ def print_encrypted_var(name, value):
         for line in encrypted_value.splitlines():
             print('%s%s' % (indent, line))
 
-
-#for arg in sys.argv:
-    # print "Argument: ", arg
-if len(sys.argv)>1:
-    filename=sys.argv[1]
 
 with open(filename) as inp:
     lines = inp.readlines()
