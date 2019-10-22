@@ -1,0 +1,55 @@
+#!/usr/bin/python
+
+filename='group_vars/all/vars.yml'
+
+import sys
+import re
+import random
+import string
+import ansible.parsing.vault as vault
+from ansible.parsing.vault import VaultAES256, VaultSecret
+
+multi=True
+vault_pass=VaultSecret('s3cr3t')
+
+def randomstring(length=16):
+    letters = string.ascii_lowercase + string.ascii_uppercase + string.digits
+    return ''.join(random.SystemRandom().choice(letters) for i in range(length))
+
+def encrypt(raw):
+    return VaultAES256.encrypt(raw,vault_pass)
+def decrypt(raw):
+    return VaultAES256.decrypt(raw,vault_pass)
+
+
+def print_encrypted_var(name, value):
+    encrypted_value=vault.format_vaulttext_envelope(encrypt(value),'AES256')
+    if not multi:
+        print(name+": !vault " +encrypted_value.replace("\n", "\\n"))
+    else:
+        print(name+": !vault |")
+        indent=' '*10
+        for line in encrypted_value.splitlines():
+            print('%s%s' % (indent, line))
+
+
+#for arg in sys.argv:
+    # print "Argument: ", arg
+if len(sys.argv)>1:
+    filename=sys.argv[1]
+
+with open(filename) as inp:
+    lines = inp.readlines()
+cnt=1
+for line in lines:
+    #print("Line {}: {}".format(cnt, line.rstrip()))
+    parts= re.split(":[ \t]*@savvy[ \t]*",line)
+    if len(parts)==1:
+        print line.rstrip()
+    elif parts[1].startswith('generate'):
+        encrypted=randomstring()
+        print_encrypted_var (parts[0], encrypted)
+    else:
+        encrypted=re.sub("^:[ \t]*","",parts[1].strip(),1)
+        print_encrypted_var(parts[0], encrypted)
+    cnt+=1
