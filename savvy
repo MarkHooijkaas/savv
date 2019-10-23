@@ -59,7 +59,11 @@ def encrypt_file(filename):
         else:
             key=parts[0]
             value=re.sub("^:[ \t]*","",parts[1].strip(),1)
+            if value.startswith('"') and value.endswith('"'):
+                value=value[1:-1]
+                # TODO: embedded quotes mught be escaped
             (origkey,origvalue,multiline)=decrypt_line(lines,cnt+1)
+            #print "%s=%s, %s=%s" % (key, value, origkey, origvalue)
             if key!=origkey:
                 print_encrypted_var(key, value, len(multiline)>0)
             elif value!=origvalue:
