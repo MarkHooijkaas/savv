@@ -16,6 +16,7 @@ parser.add_argument('-d', '--debug', help='print debug info')
 parser.add_argument('command', help='decrypt, encrypt or edit')
 parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
 args = parser.parse_args()
+singline_indent=40
 
 if 'VAULT_PASS' in os.environ:
     vault_pass=VaultSecret(os.environ['VAULT_PASS'])
@@ -35,7 +36,8 @@ def decrypt(raw):
 def print_encrypted_var(name, value,multiline):
     encrypted_value=vault.format_vaulttext_envelope(encrypt(value),'AES256')
     if not multiline:
-        print(name+": !vault " +encrypted_value.replace("\n", "\\n"))
+        indent=' '* (singline_indent-len(name))
+        print(name+": !vault " +indent+encrypted_value.replace("\n", "\\n"))
     else:
         print(name+": !vault |")
         indent=' '*10
@@ -101,7 +103,7 @@ def show_file(filename):
     for line in lines:
         parts= re.split(":[ \t]*",line)
         if len(parts)>1:
-            (key, value, multiline) = decrypt_line(lines, cnt)
+            (key, value, multiline, skipcount) = decrypt_line(lines, cnt)
             if key:
                 print key+": "+value
         cnt+=1
