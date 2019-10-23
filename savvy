@@ -47,9 +47,14 @@ def encrypt_file(filename):
     with open(filename) as inp:
         lines = inp.readlines()
     cnt=0
+    skipcnt=0
     for line in lines:
         if args.debug:
             print("Line {}: {}".format(cnt+1, line.rstrip()))
+        if skipcnt>0:
+            skipcnt-=1
+            cnt+=1
+            continue
         parts= re.split(":[ \t]*@savvy[ \t]*",line)
         if len(parts)==1:
             print line.rstrip()
@@ -58,17 +63,20 @@ def encrypt_file(filename):
             print_encrypted_var (parts[0], value, '')
         else:
             key=parts[0]
-            value=re.sub("^:[ \t]*","",parts[1].strip(),1)
+            remainder=re.sub("^[^:]*:[ \t]*@savvy[ \t]*","",line,1)
+            value=re.sub("^[^:]*:[ \t]","",remainder,1).strip()
+            #print "****"+remainder+"..."+value
             if value.startswith('"') and value.endswith('"'):
                 value=value[1:-1]
-                # TODO: embedded quotes mught be escaped
-            (origkey,origvalue,multiline)=decrypt_line(lines,cnt+1)
+                # TODO: embedded quotes might be escaped
+            (origkey,origvalue,origmultiline,count)=decrypt_line(lines,cnt+1)
+            multiline=False #args.force_multine or len(options)>0
             #print "%s=%s, %s=%s" % (key, value, origkey, origvalue)
             if key!=origkey:
-                print_encrypted_var(key, value, len(multiline)>0)
-            elif value!=origvalue:
-                print_encrypted_var(key, value, len(multiline)>0)
-                # TODO do not print the next few lines
+                print_encrypted_var(key, value, multiline)
+            elif value!=origvalue or multiline!=origmultiline:
+                print_encrypted_var(key, value, multiline)
+                skipcnt=count
         cnt+=1
 
 def decrypt_file(filename):
@@ -80,34 +88,53 @@ def decrypt_file(filename):
             print("Line {}: {}".format(cnt+1, line.rstrip()))
         parts= re.split(":[ \t]*",line)
         if len(parts)>1:
-            (key, value, multiline) = decrypt_line(lines, cnt)
+            (key, value, multiline, count) = decrypt_line(lines, cnt)
             if key:
                 print key+": @savvy"+multiline+": "+value
         print line.rstrip()
         cnt+=1
 
+def show_file(filename):
+    with open(filename) as inp:
+        lines = inp.readlines()
+    cnt=0
+    for line in lines:
+        parts= re.split(":[ \t]*",line)
+        if len(parts)>1:
+            (key, value, multiline) = decrypt_line(lines, cnt)
+            if key:
+                print key+": "+value
+        cnt+=1
+
+
 def decrypt_line(lines, index):
     parts= re.split(":[ \t]*",lines[index])
     if len(parts)==1:
-        return (None,None,'')
+        return (None,None,False,0)
     str=""
-    multiline=""
+    multiline=False
+    skipcount=0
     if re.search('!vault[ \t]*\|',parts[1]):
         i=index+2
+        skipcount=2
         while i<len(lines) and re.search('^[ \t]*[0-9a]*[ \t]*$',lines[i]):
             str+=lines[i].strip()
             i+=1
-        multiline=" multiline"
+            skipcount+=1
+        multiline=True
     elif parts[1].startswith('!vault'):
         match=re.search('!vault[ \t]*\$ANSIBLE_VAULT;1.1;AES256', parts[1])
         if match:
             str=parts[1][match.end():].replace('\\n','').strip()
+            skipcount=1
     if len(str)>0:
-        return (parts[0].strip(), decrypt(str).strip(), multiline)
-    return (None,None,'')
+        return (parts[0].strip(), decrypt(str).strip(), multiline, skipcount)
+    return (None,None,False,0)
 
 
 if args.command=='encrypt':
     encrypt_file(args.filename)
 elif args.command=='decrypt':
     decrypt_file(args.filename)
+elif args.command=='show':
+    show_file(args.filename)
