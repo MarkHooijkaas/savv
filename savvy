@@ -29,9 +29,9 @@ def decrypt(raw):
     return VaultAES256.decrypt(raw,vault_pass)
 
 
-def print_encrypted_var(name, value):
+def print_encrypted_var(name, value,multiline):
     encrypted_value=vault.format_vaulttext_envelope(encrypt(value),'AES256')
-    if not args.multi:
+    if not multiline:
         print(name+": !vault " +encrypted_value.replace("\n", "\\n"))
     else:
         print(name+": !vault |")
@@ -43,19 +43,23 @@ def print_encrypted_var(name, value):
 def encrypt_file(filename):
     with open(filename) as inp:
         lines = inp.readlines()
-    cnt=1
+    cnt=0
     for line in lines:
         if args.debug:
-            print("Line {}: {}".format(cnt, line.rstrip()))
+            print("Line {}: {}".format(cnt+1, line.rstrip()))
         parts= re.split(":[ \t]*@savvy[ \t]*",line)
         if len(parts)==1:
             print line.rstrip()
         elif parts[1].startswith('generate'):
-            encrypted=randomstring()
-            print_encrypted_var (parts[0], encrypted)
+            value=randomstring()
+            print_encrypted_var (parts[0], value)
         else:
-            encrypted=re.sub("^:[ \t]*","",parts[1].strip(),1)
-            print_encrypted_var(parts[0], encrypted)
+            key=parts[0]
+            value=re.sub("^:[ \t]*","",parts[1].strip(),1)
+            (origkey,origvalue,multiline)=decrypt_line(lines,cnt+1)
+            if key==origkey and value!=origvalue:
+                print_encrypted_var(key, value, len(multiline)>0)
+                # TODO do not print the next few lines
         cnt+=1
 
 def decrypt_file(filename):
@@ -84,7 +88,7 @@ def decrypt_line(lines, index):
         while i<len(lines) and re.search('^[ \t]*[0-9a]*[ \t]*$',lines[i]):
             str+=lines[i].strip()
             i+=1
-        multiline=" multiline "
+        multiline=" multiline"
     elif parts[1].startswith('!vault'):
         match=re.search('!vault[ \t]*\$ANSIBLE_VAULT;1.1;AES256', parts[1])
         if match:
