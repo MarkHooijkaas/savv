@@ -5,6 +5,7 @@ import re
 import random
 import string
 import argparse
+import os
 import ansible.parsing.vault as vault
 from ansible.parsing.vault import VaultAES256, VaultSecret
 
@@ -16,7 +17,10 @@ parser.add_argument('command', help='decrypt, encrypt or edit')
 parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
 args = parser.parse_args()
 
-vault_pass=VaultSecret('s3cr3t')
+if 'VAULT_PASS' in os.environ:
+    vault_pass=VaultSecret(os.environ['VAULT_PASS'])
+else:
+    raise SystemExit("please set (read -s) and export VAULT_PASS")
 
 
 def randomstring(length=16):
@@ -27,7 +31,6 @@ def encrypt(raw):
     return VaultAES256.encrypt(raw,vault_pass)
 def decrypt(raw):
     return VaultAES256.decrypt(raw,vault_pass)
-
 
 def print_encrypted_var(name, value,multiline):
     encrypted_value=vault.format_vaulttext_envelope(encrypt(value),'AES256')
@@ -52,12 +55,14 @@ def encrypt_file(filename):
             print line.rstrip()
         elif parts[1].startswith('generate'):
             value=randomstring()
-            print_encrypted_var (parts[0], value)
+            print_encrypted_var (parts[0], value, '')
         else:
             key=parts[0]
             value=re.sub("^:[ \t]*","",parts[1].strip(),1)
             (origkey,origvalue,multiline)=decrypt_line(lines,cnt+1)
-            if key==origkey and value!=origvalue:
+            if key!=origkey:
+                print_encrypted_var(key, value, len(multiline)>0)
+            elif value!=origvalue:
                 print_encrypted_var(key, value, len(multiline)>0)
                 # TODO do not print the next few lines
         cnt+=1
@@ -73,14 +78,14 @@ def decrypt_file(filename):
         if len(parts)>1:
             (key, value, multiline) = decrypt_line(lines, cnt)
             if key:
-                print key+": @savvy "+multiline+": "+value
+                print key+": @savvy"+multiline+": "+value
         print line.rstrip()
         cnt+=1
 
 def decrypt_line(lines, index):
     parts= re.split(":[ \t]*",lines[index])
     if len(parts)==1:
-        return (None,None,None)
+        return (None,None,'')
     str=""
     multiline=""
     if re.search('!vault[ \t]*\|',parts[1]):
@@ -95,7 +100,7 @@ def decrypt_line(lines, index):
             str=parts[1][match.end():].replace('\\n','').strip()
     if len(str)>0:
         return (parts[0].strip(), decrypt(str).strip(), multiline)
-    return (None,None,None)
+    return (None,None,'')
 
 
 if args.command=='encrypt':
