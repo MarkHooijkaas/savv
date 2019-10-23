@@ -5,8 +5,9 @@ This set of tools is meant to use single variables in a normal unencryted vars f
 Ansible playbooks support the use of these variables, but the tooling to encrypt and decrypt these vars can be better.
 
 The main planned tools are:
-* `savvy-encrypt`: encrypt all `@savvy` annotated variables in a file
-* `savvy-decrypt`: decrypt all `!vault` variables in a file
+* `savvy encrypt`: encrypt all `@savvy` annotated variables in a file
+* `savvy decrypt`: decrypt all `!vault` variables in a file
+* `savvy edit`: decrypt, edit, and re-encrypt 
 
 ## Goals
 * work well with version control system like git
@@ -19,7 +20,7 @@ To encrypt some variables in a file, these can be marked with a @savvy annotatio
 ```
 some_password: @savvy: BadPassword123
 ```
-`savvy-encrypt` will encrypt all the variables with this annotation (after trimming whitespaces after the colon and at the end of the line).
+`savvy encrypt` will encrypt all the variables with this annotation (after trimming whitespaces after the colon and at the end of the line).
 
 ## Decrypting and re-encrypting
 One of the main targets is to be able to simply edit the encypted variables in a file and the re-encypt them, where the encrypted string is not changed if the value is not changed. This is important in order to store the values in a version control system like git. In order to do this savvy-decrypt will keep the original encrypted value, next to the decrypted value. When encrypting with savvy-encrypt this will recognize if the value is changed, and if it is not modified reuse the old encrypted value.
@@ -35,9 +36,9 @@ some_password: !vault |
           6562
 ```
 
-when decrypting with `savvy-decrypt` this will become:
+when decrypting with `savvy decrypt` this will become:
 ```
-some_password: @savvy: my_secret_value
+some_password: @savvy multiline: my_secret_value
 some_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           65653039303432386134336262653763303264383664383862616330343032653934623465643937
@@ -46,7 +47,7 @@ some_password: !vault |
           3635393663386335340a564524626433366439323638613538656562366238656463633638616237
           6562
 ```
-When (re)encrypting this file with `savvy-encrypt`, savvy will check if the new value in the first line is still the same as the old secret value when decrypting the second line. If this is the same, then the old encryption of the second part is being used, so there will be no change for version control.
+When (re)encrypting this file with `savvy encrypt`, savvy will check if the new value in the first line is still the same as the old secret value when decrypting the second line. If this is the same, then the old encryption of the second part is being used, so there will be no change for version control.
 
 ## Automatic password generation
 It is also possible to let @savvy generate a password for you using the following syntax:
@@ -66,7 +67,7 @@ Anything after the colon will be the password (with leading and trailing whitesp
 some_password: @savvy: my_secret_value 
 
 # the password will be enrypted in a multi-line format
-some_password: @savvy multi-line: my_secret_value
+some_password: @savvy multiline: my_secret_value
 
 # the password will be enrypted using an ansible vault-id
 some_password: @savvy id=dev: my_secret_value
