@@ -92,7 +92,10 @@ def decrypt_file(filename):
         if len(parts)>1:
             (key, value, multiline, count) = decrypt_line(lines, cnt)
             if key:
-                print key+": @savvy"+multiline+": "+value
+                if multiline:
+                    print key+": @savvy multiline: "+value
+                else:
+                    print key+": @savvy: "+value
         print line.rstrip()
         cnt+=1
 
