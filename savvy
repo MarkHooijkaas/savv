@@ -190,18 +190,22 @@ def decrypt_line(lines, index):
         return (parts[0].strip(), decrypt(str).strip(), multiline, skipcount)
     return (None,None,False,0)
 
+def command(name):
+    if len(name)<len(args.command):
+        return False
+    return name.startswith(args.command)
 
-if args.command=='encrypt':
+if command('encrypt'):
     lines=input_open()
     output_open(args.filename)
     encrypt_file(lines)
     output_close()
-elif args.command=='decrypt':
+elif command('decrypt'):
     lines=input_open()
     output_open(args.filename)
     decrypt_file(lines)
     output_close()
-elif args.command=='show':
+elif command('show'):
     lines=input_open()
     output_open("-")
     show_file(lines)
