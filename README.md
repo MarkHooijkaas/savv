@@ -4,15 +4,20 @@ Single Ansible Vault Variable encrYpt/decrYpt Tools
 This set of tools is meant to use single variables in a normal unencryted vars file that are encrypted with ansible-vault.
 Ansible playbooks support the use of these variables, but the tooling to encrypt and decrypt these vars can be better.
 
-The main planned tools are:
+The tools are:
+* `savvy decrypt`: decrypt all `!vault` variables in a file with special @savvy marker
+* `savvy split` :  decrypt all `!vault` variables in a separate mergefile
 * `savvy encrypt`: encrypt all `@savvy` annotated variables in a file
-* `savvy decrypt`: decrypt all `!vault` variables in a file
-* `savvy edit`: decrypt, edit, and re-encrypt 
+* `savvy merge`: encrypt all variables from a mergefile into the main file (not implemented yet)
+* `savvy view`: show all encrypted variables in a file
+* `savvy edit`: decrypt, edit, and re-encrypt (not implemented yet)
+
+All commands can be abbreviated with the first letter or letters, for example `savvy d`, `savvy de`, `savvy dec`, `savvy decr` will all decrypt the file. Since both `encrypt` and `edit` start with the letter `e` one must at least use `savvy ed` to edit a file. `savvy e` will encrypt the file
 
 ## Goals
 * work well with version control system like git
 * be able to edit a file with several secret values
-* support single and multi line vault formats
+* support single and multi line vault formats (not working yet)
 * automatically generate new passwords
 
 ## Encrypting
@@ -48,6 +53,27 @@ some_password: !vault |
           6562
 ```
 When (re)encrypting this file with `savvy encrypt`, savvy will check if the new value in the first line is still the same as the old secret value when decrypting the second line. If this is the same, then the old encryption of the second part is being used, so there will be no change for version control.
+
+## Splitting and merging
+Instead of decrypting all vault vars and placing them in the original file with a savvy marker, 
+it is also possible to put them in a separate "mergefile".
+The secrets in this mergefile can be edited, and then merged back into the original file using the `savvy merge` command.
+The flow would be something like
+```
+savvy split <file>
+vi savvy.mergefile
+savvy merge <file>
+```
+The default mergefile is `savvy.mergefile`. 
+It is also possible to specify a different merge file, using the `-m` or `--mergefile` option.
+This option also works for the normal `savvy decrypt` and `savvy encrypt` commands.
+In fact `split` and `merge` are basically synonyms for `decode` and `encode` with a default mergefile.
+So the example above is similar to:
+```
+savvy decode -m savvy.mergefile <file>
+vi savvy.mergefile
+savvy encode -m savvy.mergefile <file>
+```
 
 ## Automatic password generation
 It is also possible to let @savvy generate a password for you using the following syntax:
