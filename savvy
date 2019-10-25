@@ -39,14 +39,14 @@ parser.add_argument('-d', '--debug', action='store_true', help='print debug info
 parser.add_argument('-c', '--check', action='store_true', help='check mode (dry-run)')
 parser.add_argument('-a', '--ask-password',  action='store_true',help='ask for a password (even if VAULT_PASS is set)')
 parser.add_argument('-o', '--output', help='output file')
-parser.add_argument('-j', '--mergefile', help='merge file with passwords to be split from or merged into main file')
+parser.add_argument('-m', '--mergefile', help='merge file with passwords to be split from or merged into main file')
 parser.add_argument('command', help=allcommands)
 parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
 args = parser.parse_args()
 singline_indent=40
 multiline_format=True
 
-if 'VAULT_PASS' in os.environ and not args.ask_password:
+if 'VAULT_PASS' in os.environ and os.environ['VAULT_PASS'] and not args.ask_password:
     vault_pass=VaultSecret(os.environ['VAULT_PASS'])
 else:
     vault_pass = VaultSecret(getpass("Vault Password:"))
