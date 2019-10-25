@@ -8,12 +8,14 @@ import argparse
 import os
 import ansible.parsing.vault as vault
 from ansible.parsing.vault import VaultAES256, VaultSecret
+from getpass import getpass
 
 allcommands="decrypt, encrypt, view, split, merge"
 parser = argparse.ArgumentParser(description='Single Ansible Vault Var encrYpter/decrYpter')
 #parser.add_argument('-m', '--multi', action='store_true', help='use multiline format')
 parser.add_argument('-q', '--quiet', action='store_true', help='show no informational output')
 parser.add_argument('-d', '--debug', action='store_true', help='print debug info')
+parser.add_argument('-a', '--ask-password',  action='store_true',help='ask for a password (even if VAULT_PASS is set)')
 parser.add_argument('-o', '--output', help='output file')
 parser.add_argument('-j', '--mergefile', help='merge file with passwords to be split from or merged into main file')
 parser.add_argument('command', help=allcommands)
@@ -21,10 +23,10 @@ parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', he
 args = parser.parse_args()
 singline_indent=40
 
-if 'VAULT_PASS' in os.environ:
+if 'VAULT_PASS' in os.environ and not args.ask_password:
     vault_pass=VaultSecret(os.environ['VAULT_PASS'])
 else:
-    raise SystemExit("please set (read -s) and export VAULT_PASS")
+    vault_pass = VaultSecret(getpass("Vault Password:"))
 
 def input_open():
     with open(args.filename) as inp:
@@ -250,4 +252,4 @@ elif command('split'):
     decrypt_file(lines)
     close_mergefile()
 else:
-    sys.stderr.write("Unknown command '%s', must be any of %s\n" % (args.command, allcommands))
+    raise SystemExit("Unknown command '%s', must be any of %s\n" % (args.command, allcommands))
