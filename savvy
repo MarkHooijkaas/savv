@@ -109,7 +109,7 @@ def read_mergefile(all=True):
         for l in lines:
             (savvy, key, value)=parse_line(l)
             if savvy or (key and all):
-                verbose('reading: '+savvy.ljust(17)+':'+key)
+                debug('reading: '+savvy.ljust(17)+':'+key)
                 mergedict[key] = (savvy, value)
 def write_mergefile():
     if mergelines:
@@ -196,12 +196,12 @@ def encrypt_file(lines):
             (newsavvy, newvalue)=mergedict[key]
             mergedict.pop(key)
             if origvalue!=newvalue:
-                verbose("changed value of: "+key)
+                verbose("  modified key: "+key)
                 output_encrypted_var(key, newvalue, multiline_format)
                 debug("skipping %d lines" % count)
                 skipcnt=count
             elif multiline_format!=origmultiline:
-                verbose("changed format: "+key)
+                verbose("  reformat key: "+key)
                 output_encrypted_var(key, newvalue, multiline_format)
                 debug("skipping %d lines" % count)
                 skipcnt=count
@@ -211,6 +211,8 @@ def encrypt_file(lines):
         else:
             debug("unmergable key: "+key)
             output(line.rstrip())
+    for key in mergedict:
+        verbose('unmerged key: '+key)
 
 def decrypt_file(lines):
     cnt=0
