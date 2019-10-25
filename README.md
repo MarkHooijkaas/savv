@@ -24,7 +24,7 @@ All commands can be abbreviated with the first letter or letters, for example `s
 To encrypt some variables in a file, these can be marked with a @savvy annotation as follows:
 ```
 @savvy: some_password: BadPassword123
-1```
+```
 `savvy encrypt` will encrypt all the variables with this annotation (after trimming whitespaces after the colon and at the end of the line).
 
 ## Decrypting and re-encrypting
