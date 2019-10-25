@@ -10,9 +10,10 @@ import ansible.parsing.vault as vault
 from ansible.parsing.vault import VaultAES256, VaultSecret
 
 parser = argparse.ArgumentParser(description='Single Ansible Vault Var encrYpter/decrYpter')
-parser.add_argument('-m', '--multi', action='store_true', help='use multiline format')
+#parser.add_argument('-m', '--multi', action='store_true', help='use multiline format')
+parser.add_argument('-q', '--quiet', action='store_true', help='show no informational output')
+parser.add_argument('-d', '--debug', action='store_true', help='print debug info')
 parser.add_argument('-o', '--output', help='output file')
-parser.add_argument('-d', '--debug', help='print debug info')
 parser.add_argument('command', help='decrypt, encrypt or edit')
 parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
 args = parser.parse_args()
@@ -22,6 +23,51 @@ if 'VAULT_PASS' in os.environ:
     vault_pass=VaultSecret(os.environ['VAULT_PASS'])
 else:
     raise SystemExit("please set (read -s) and export VAULT_PASS")
+
+def input_open():
+    with open(args.filename) as inp:
+        inputlines = inp.readlines()
+    return inputlines
+
+outputfile=None
+outputlines=[]
+def output_open(defaultfile):
+    global outputfile
+    if args.output:
+        file=args.output
+    else:
+        file=defaultfile
+    if file==None or file=="-":
+        outputfile=None
+    else:
+        outputfile=file
+def output_close():
+    if outputfile==None or outputfile=="-":
+        return
+    else:
+        verbose("Writing to file: "+outputfile)
+        f = open(outputfile, "w")
+        for l in outputlines:
+            f.write(l)
+def output(str, newline=True):
+    if outputfile==None:
+        print(str)
+    else:
+        if newline:
+            outputlines.append(str+"\n")
+        else:
+            outputlines.append(str)
+
+def verbose(str):
+    if args.quiet:
+        return
+    print(str)
+def debug(str):
+    if args.quiet:
+        return
+    if args.debug:
+        print(str)
+
 
 
 def randomstring(length=16):
@@ -33,82 +79,90 @@ def encrypt(raw):
 def decrypt(raw):
     return VaultAES256.decrypt(raw,vault_pass)
 
-def print_encrypted_var(name, value,multiline):
+def output_encrypted_var(name, value,multiline):
     encrypted_value=vault.format_vaulttext_envelope(encrypt(value),'AES256')
     if not multiline:
         indent=' '* (singline_indent-len(name))
-        print(name+": !vault " +indent+encrypted_value.replace("\n", "\\n"))
+        output(name+": !vault " +indent+encrypted_value.replace("\n", "\\n"))
     else:
-        print(name+": !vault |")
+        output(name+": !vault |")
         indent=' '*10
         for line in encrypted_value.splitlines():
-            print('%s%s' % (indent, line))
+            output('%s%s' % (indent, line))
 
 
-def encrypt_file(filename):
-    with open(filename) as inp:
-        lines = inp.readlines()
+def encrypt_file(lines):
     cnt=0
     skipcnt=0
     for line in lines:
-        if args.debug:
-            print("Line {}: {}".format(cnt+1, line.rstrip()))
+        #if args.debug:
+        #    debug("Line {}: {}".format(cnt+1, line.rstrip()))
         if skipcnt>0:
             skipcnt-=1
             cnt+=1
             continue
         parts= re.split(":[ \t]*@savvy[ \t]*",line)
         if len(parts)==1:
-            print line.rstrip()
+            #debug("keeping: "+line)
+            output(line.rstrip())
         elif parts[1].startswith('generate'):
+            multiline=True #args.force_multine or len(options)>0
             value=randomstring()
-            print_encrypted_var (parts[0], value, '')
+            verbose("generating: "+parts[0])
+            output_encrypted_var(parts[0], value, multiline)
         else:
             key=parts[0]
             remainder=re.sub("^[^:]*:[ \t]*@savvy[ \t]*","",line,1)
             value=re.sub("^[^:]*:[ \t]","",remainder,1).strip()
-            #print "****"+remainder+"..."+value
+            #debug( "****"+remainder+"..."+value)
             if value.startswith('"') and value.endswith('"'):
                 value=value[1:-1]
                 # TODO: embedded quotes might be escaped
             (origkey,origvalue,origmultiline,count)=decrypt_line(lines,cnt+1)
-            multiline=False #args.force_multine or len(options)>0
-            #print "%s=%s, %s=%s" % (key, value, origkey, origvalue)
+            multiline=True #args.force_multine or len(options)>0
+            debug("Found key %s with next key %s" % (key, origkey))
             if key!=origkey:
-                print_encrypted_var(key, value, multiline)
-            elif value!=origvalue or multiline!=origmultiline:
-                print_encrypted_var(key, value, multiline)
+                verbose("new key: "+key)
+                output_encrypted_var(key, value, multiline)
+            elif value!=origvalue:
+                verbose("changed key: "+key)
+                output_encrypted_var(key, value, multiline)
                 skipcnt=count
+            elif multiline!=origmultiline:
+                verbose("changed format: "+key)
+                output_encrypted_var(key, value, multiline)
+                skipcnt=count
+            else:
+                verbose("unmodified key: "+key)
+
         cnt+=1
 
-def decrypt_file(filename):
-    with open(filename) as inp:
-        lines = inp.readlines()
+def decrypt_file(lines):
     cnt=0
     for line in lines:
-        if args.debug:
-            print("Line {}: {}".format(cnt+1, line.rstrip()))
+        #if args.debug:
+        #    debug("Line {}: {}".format(cnt+1, line.rstrip()))
         parts= re.split(":[ \t]*",line)
         if len(parts)>1:
             (key, value, multiline, count) = decrypt_line(lines, cnt)
             if key:
                 if multiline:
-                    print key+": @savvy multiline: "+value
+                    verbose("multiline: "+key)
+                    output(key+": @savvy multiline: "+value)
                 else:
-                    print key+": @savvy: "+value
-        print line.rstrip()
+                    verbose("singleline: "+key)
+                    output(key+": @savvy: "+value)
+        output(line.rstrip())
         cnt+=1
 
-def show_file(filename):
-    with open(filename) as inp:
-        lines = inp.readlines()
+def show_file(lines):
     cnt=0
     for line in lines:
         parts= re.split(":[ \t]*",line)
         if len(parts)>1:
             (key, value, multiline, skipcount) = decrypt_line(lines, cnt)
             if key:
-                print key+": "+value
+                output(key+": "+value)
         cnt+=1
 
 
@@ -138,8 +192,16 @@ def decrypt_line(lines, index):
 
 
 if args.command=='encrypt':
-    encrypt_file(args.filename)
+    lines=input_open()
+    output_open(args.filename)
+    encrypt_file(lines)
+    output_close()
 elif args.command=='decrypt':
-    decrypt_file(args.filename)
+    lines=input_open()
+    output_open(args.filename)
+    decrypt_file(lines)
+    output_close()
 elif args.command=='show':
-    show_file(args.filename)
+    lines=input_open()
+    output_open("-")
+    show_file(lines)
