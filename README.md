@@ -23,8 +23,8 @@ All commands can be abbreviated with the first letter or letters, for example `s
 ## Encrypting
 To encrypt some variables in a file, these can be marked with a @savvy annotation as follows:
 ```
- @savvy: some_password: BadPassword123
-```
+@savvy: some_password: BadPassword123
+1```
 `savvy encrypt` will encrypt all the variables with this annotation (after trimming whitespaces after the colon and at the end of the line).
 
 ## Decrypting and re-encrypting
@@ -43,7 +43,7 @@ some_password: !vault |
 
 when decrypting with `savvy decrypt` this will become:
 ```
- @savvy:some_password: my_secret_value
+@savvy: some_password: my_secret_value
 some_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           65653039303432386134336262653763303264383664383862616330343032653934623465643937
