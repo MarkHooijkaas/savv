@@ -9,12 +9,14 @@ import os
 import ansible.parsing.vault as vault
 from ansible.parsing.vault import VaultAES256, VaultSecret
 
+allcommands="decrypt, encrypt, view, split, join"
 parser = argparse.ArgumentParser(description='Single Ansible Vault Var encrYpter/decrYpter')
 #parser.add_argument('-m', '--multi', action='store_true', help='use multiline format')
 parser.add_argument('-q', '--quiet', action='store_true', help='show no informational output')
 parser.add_argument('-d', '--debug', action='store_true', help='print debug info')
 parser.add_argument('-o', '--output', help='output file')
-parser.add_argument('command', help='decrypt, encrypt or edit')
+parser.add_argument('-j', '--joinfile', help='join file contains passwords that can be merged in main file')
+parser.add_argument('command', help=allcommands)
 parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
 args = parser.parse_args()
 singline_indent=40
@@ -57,6 +59,25 @@ def output(str, newline=True):
             outputlines.append(str+"\n")
         else:
             outputlines.append(str)
+
+joinfile=None
+joinlines=None
+def open_joinfile(defaultfile):
+    global joinlines
+    global joinfile
+    if (args.joinfile):
+        joinfile=args.joinfile
+    else:
+        joinfile=defaultfile
+    if joinfile:
+        joinlines=['---', '']
+def close_joinfile():
+    if joinlines:
+        verbose("Writing to joinfile: "+joinfile)
+        f = open(joinfile, "w")
+        for l in joinlines:
+            f.write(l+"\n")
+
 
 def verbose(str):
     if args.quiet:
@@ -148,10 +169,15 @@ def decrypt_file(lines):
             if key:
                 if multiline:
                     verbose("multiline: "+key)
-                    output(key+": @savvy multiline: "+value)
+                    str = key+": @savvy multiline: "+value
                 else:
                     verbose("singleline: "+key)
-                    output(key+": @savvy: "+value)
+                    str = key+": @savvy: "+value
+                if joinlines:
+                    joinlines.append(str)
+                else:
+                    output(str)
+
         output(line.rstrip())
         cnt+=1
 
@@ -203,9 +229,25 @@ if command('encrypt'):
 elif command('decrypt'):
     lines=input_open()
     output_open(args.filename)
+    open_joinfile(None)
     decrypt_file(lines)
-    output_close()
-elif command('show'):
+    close_joinfile()
+    if not joinfile:
+        output_close()
+elif command('view'):
     lines=input_open()
     output_open("-")
     show_file(lines)
+elif command('join'):
+    lines=input_open()
+    output_open(args.filename)
+    encrypt_file(lines)
+    output_close()
+elif command('split'):
+    lines=input_open()
+    open_joinfile('savvy.joinfile')
+    output_open(args.filename)
+    decrypt_file(lines)
+    close_joinfile()
+else:
+    sys.stderr.write("Unknown command '%s', must be any of %s\n" % (args.command, allcommands))
