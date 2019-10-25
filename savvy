@@ -9,9 +9,30 @@ import os
 import ansible.parsing.vault as vault
 from ansible.parsing.vault import VaultAES256, VaultSecret
 from getpass import getpass
+from argparse import RawTextHelpFormatter
+
+epilogtext='''
+commands:
+  - savvy decrypt: decrypt all !vault variables in a file with special @savvy marker
+  - savvy split :  decrypt all !vault variables in a separate mergefile
+  - savvy encrypt: encrypt all @savvy annotated variables in a file
+  - savvy merge:   encrypt all variables from a mergefile into the main file (not implemented yet)
+  - savvy view:    show all encrypted variables in a file
+  - savvy edit:    decrypt, edit, and re-encrypt (not implemented yet)
+
+All commands can be abbreviated with the first letter or letters, for example to decrypt:
+  - savvy d
+  - savvy de
+  - savvy dec
+  - savvy decr
+
+If two commands start with the same letter(s) the first command will be used
+  - savvy e     will encrypt
+  - savvy ed    will edit
+'''
 
 allcommands="decrypt, encrypt, view, split, merge"
-parser = argparse.ArgumentParser(description='Single Ansible Vault Var encrYpter/decrYpter')
+parser = argparse.ArgumentParser(description='Single Ansible Vault Var encrYpter/decrYpter', epilog=epilogtext,  formatter_class=RawTextHelpFormatter)
 #parser.add_argument('-m', '--multi', action='store_true', help='use multiline format')
 parser.add_argument('-q', '--quiet', action='store_true', help='show no informational output')
 parser.add_argument('-d', '--debug', action='store_true', help='print debug info')
