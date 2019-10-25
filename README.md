@@ -23,7 +23,7 @@ All commands can be abbreviated with the first letter or letters, for example `s
 ## Encrypting
 To encrypt some variables in a file, these can be marked with a @savvy annotation as follows:
 ```
-some_password: @savvy: BadPassword123
+ @savvy: some_password: BadPassword123
 ```
 `savvy encrypt` will encrypt all the variables with this annotation (after trimming whitespaces after the colon and at the end of the line).
 
@@ -43,7 +43,7 @@ some_password: !vault |
 
 when decrypting with `savvy decrypt` this will become:
 ```
-some_password: @savvy multiline: my_secret_value
+ @savvy:some_password: my_secret_value
 some_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           65653039303432386134336262653763303264383664383862616330343032653934623465643937
@@ -55,7 +55,7 @@ some_password: !vault |
 When (re)encrypting this file with `savvy encrypt`, savvy will check if the new value in the first line is still the same as the old secret value when decrypting the second line. If this is the same, then the old encryption of the second part is being used, so there will be no change for version control.
 
 ## Splitting and merging
-Instead of decrypting all vault vars and placing them in the original file with a savvy marker, 
+Instead of decrypting all vault vars and placing them in the original file with a savvy marker,
 it is also possible to put them in a separate "mergefile".
 The secrets in this mergefile can be edited, and then merged back into the original file using the `savvy merge` command.
 The flow would be something like
@@ -64,7 +64,7 @@ savvy split <file>
 vi savvy.mergefile
 savvy merge <file>
 ```
-The default mergefile is `savvy.mergefile`. 
+The default mergefile is `savvy.mergefile`.
 It is also possible to specify a different merge file, using the `-m` or `--mergefile` option.
 This option also works for the normal `savvy decrypt` and `savvy encrypt` commands.
 In fact `split` and `merge` are basically synonyms for `decode` and `encode` with a default mergefile.
@@ -76,32 +76,32 @@ savvy encode -m savvy.mergefile <file>
 ```
 
 ## Automatic password generation
-It is also possible to let @savvy generate a password for you using the following syntax:
+It is also possible to let savvy generate a password for you using the following syntax:
 ```
-some_password: @savvy generate
+@savvy generate: some_password
 ```
 When running savvy-encrrypt, this will generate a random password and encrypt this.
 By default the password will be 16 alphanumeric characters.
 Future options will make it possible to specify a different length and character set.
 
 ## Other @savvy options
-The `@savvy` annotation can support several options. 
+The `@savvy` annotation can support several options.
 These options must be placed after the `@savvy` annotation and before the colon, separated by spaces.
 Anything after the colon will be the password (with leading and trailing whitespace trimmed).
 ```
-# the password will be enrypted
-some_password: @savvy: my_secret_value 
+# the password will be encrypted
+@savvy: some_password: my_secret_value
 
-# the password will be enrypted in a multi-line format
-some_password: @savvy multiline: my_secret_value
+# the password will be encrypted in a single-line format
+@savvy singleline: some_password: my_secret_value
 
-# the password will be enrypted using an ansible vault-id
-some_password: @savvy id=dev: my_secret_value
+# the password will be encrypted using an ansible vault-id
+@savvy id=dev: some_password: my_secret_value
 
 # A random password of length 20 will be generated abd enrypted (colon is not needed)
-some_password: @savvy generate length=20
+@savvy generate length=20: some_password
 
-# Do nothing. This is a reminder that the user must manually fill in this value 
-api_key: @savvy multi-line TODO: Get the password from the cloud provider
+# Do nothing. This is a reminder that the user must manually fill in this value
+@savvy multi-line TODO: api_key: Get the password from the cloud provider
 
 ```
