@@ -9,13 +9,13 @@ import os
 import ansible.parsing.vault as vault
 from ansible.parsing.vault import VaultAES256, VaultSecret
 
-allcommands="decrypt, encrypt, view, split, join"
+allcommands="decrypt, encrypt, view, split, merge"
 parser = argparse.ArgumentParser(description='Single Ansible Vault Var encrYpter/decrYpter')
 #parser.add_argument('-m', '--multi', action='store_true', help='use multiline format')
 parser.add_argument('-q', '--quiet', action='store_true', help='show no informational output')
 parser.add_argument('-d', '--debug', action='store_true', help='print debug info')
 parser.add_argument('-o', '--output', help='output file')
-parser.add_argument('-j', '--joinfile', help='join file contains passwords that can be merged in main file')
+parser.add_argument('-j', '--mergefile', help='merge file with passwords to be split from or merged into main file')
 parser.add_argument('command', help=allcommands)
 parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
 args = parser.parse_args()
@@ -60,22 +60,22 @@ def output(str, newline=True):
         else:
             outputlines.append(str)
 
-joinfile=None
-joinlines=None
-def open_joinfile(defaultfile):
-    global joinlines
-    global joinfile
-    if (args.joinfile):
-        joinfile=args.joinfile
+mergefile=None
+mergelines=None
+def open_mergefile(defaultfile):
+    global mergelines
+    global mergefile
+    if (args.mergefile):
+        mergefile=args.mergefile
     else:
-        joinfile=defaultfile
-    if joinfile:
-        joinlines=['---', '']
-def close_joinfile():
-    if joinlines:
-        verbose("Writing to joinfile: "+joinfile)
-        f = open(joinfile, "w")
-        for l in joinlines:
+        mergefile=defaultfile
+    if mergefile:
+        mergelines=['---', '']
+def close_mergefile():
+    if mergelines:
+        verbose("Writing to mergefile: "+mergefile)
+        f = open(mergefile, "w")
+        for l in mergelines:
             f.write(l+"\n")
 
 
@@ -93,7 +93,7 @@ def debug(str):
 
 def randomstring(length=16):
     letters = string.ascii_lowercase + string.ascii_uppercase + string.digits
-    return ''.join(random.SystemRandom().choice(letters) for i in range(length))
+    return ''.merge(random.SystemRandom().choice(letters) for i in range(length))
 
 def encrypt(raw):
     return VaultAES256.encrypt(raw,vault_pass)
@@ -173,8 +173,8 @@ def decrypt_file(lines):
                 else:
                     verbose("singleline: "+key)
                     str = key+": @savvy: "+value
-                if joinlines:
-                    joinlines.append(str)
+                if mergelines:
+                    mergelines.append(str)
                 else:
                     output(str)
 
@@ -229,25 +229,25 @@ if command('encrypt'):
 elif command('decrypt'):
     lines=input_open()
     output_open(args.filename)
-    open_joinfile(None)
+    open_mergefile(None)
     decrypt_file(lines)
-    close_joinfile()
-    if not joinfile:
+    close_mergefile()
+    if not mergefile:
         output_close()
 elif command('view'):
     lines=input_open()
     output_open("-")
     show_file(lines)
-elif command('join'):
+elif command('merge'):
     lines=input_open()
     output_open(args.filename)
     encrypt_file(lines)
     output_close()
 elif command('split'):
     lines=input_open()
-    open_joinfile('savvy.joinfile')
+    open_mergefile('savvy.mergefile')
     output_open(args.filename)
     decrypt_file(lines)
-    close_joinfile()
+    close_mergefile()
 else:
     sys.stderr.write("Unknown command '%s', must be any of %s\n" % (args.command, allcommands))
