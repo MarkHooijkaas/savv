@@ -105,3 +105,26 @@ Anything after the colon will be the password (with leading and trailing whitesp
 @savvy multi-line TODO: api_key: Get the password from the cloud provider
 
 ```
+## Input, output and merge files
+When a user issues a command it can take several arguments about the files.
+```
+savvy <command> inputfile -m mergefile -o outputfile
+```
+Furthermore several environment variable can be used:
+- SAVVY_INPUTFILE
+- SAVVY_MERGEFILE
+- SAVVY_OUTPUTFILE
+
+There are several rules trying to be as easy to use, and consequent:
+- There will always be only one file written. 
+- For decrypt, encrypt and merge that will normall be the inputfile, unless otherwise specified.
+- For split it will be the file named savvy.merge unless otherwise specified.
+
+This is summarized in the table below:
+
+| command | inputfile | merge-input | outputfile |
+|---------|-----------|-------------|------------|
+| decrypt | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | -o outputfile <br/> SAVVY_OUTPUT <br/> **inputfile** |
+| split   | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | -m mergefile <br/> -o outputfile <br/> SAVVY_MERGEFILE <br/> **savvy.mergefile** |
+| encrypt | file <br/> SAVVY_INPUTFILE <br/> vars.yml | -m mergefile <br/> SAVVY_MERGEFILE <br/> **inputfile** | -o outputfile <br/> SAVVY_OUTPUT <br/> inputfile |
+| merge | file <br/> SAVVY_INPUTFILE <br/> vars.yml | -m mergefile <br/> SAVVY_MERGEFILE <br/> **savvy.mergefile** | -o outputfile <br/> SAVVY_OUTPUT <br/> inputfile |
