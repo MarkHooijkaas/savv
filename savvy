@@ -115,6 +115,10 @@ class Bunch:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
+_RE_MULTILINE_VAULT_LINE='^[^#]*:[ \t]\!*vault[ \t]*\|[\t ]*$'
+_RE_MULTILINE_VAULT_AES_LINE='^[ \t]*\$ANSIBLE_VAULT;1.1;AES256[ \t]*$'
+_RE_SINGLELINE_VAULT='^[^#]*:[ \t]\!*vault[ \t]*\$ANSIBLE_VAULT;1.1;AES256'
+
 def items(lines):
     #for line in lines:
     #    print line
@@ -124,10 +128,10 @@ def items(lines):
         result=None
         encrypted_text=None
         while True:
-            if re.search('^[^#]*:[ \t]\!*vault[ \t]*\|[\t ]*$', line):
+            if re.search(_RE_MULTILINE_VAULT_LINE, line):
                 result=line
                 line=next(iterator).rstrip()
-                if not re.search('^[ \t]*\$ANSIBLE_VAULT;1.1;AES256[ \t]*$', line):
+                if not re.search(_RE_MULTILINE_VAULT_AES_LINE, line):
                     raise SystemExit("Expected $ANSIBLE_VAULT;1.1;AES256, got: "+line)
                 line=next(iterator).rstrip()
                 encrypted_text=""
@@ -136,8 +140,8 @@ def items(lines):
                     result+='\n'+line
                     line=next(iterator).rstrip()
                 yield Bunch(text=result, encrypted_text=encrypted_text)
-            elif re.search('^[^#]*:[ \t]\!*vault[ \t]*\$ANSIBLE_VAULT;1.1;AES256', line):
-                encrypted_text=re.sub('^[^#]*:[ \t]\!*vault[ \t]*\$ANSIBLE_VAULT;1.1;AES256', '',line)
+            elif re.search(_RE_SINGLELINE_VAULT, line):
+                encrypted_text=re.sub(_RE_SINGLELINE_VAULT, '',line)
                 encrypted_text=re.sub('\\\\n','',encrypted_text)
                 yield Bunch(text=line, encrypted_text=encrypted_text)
                 line=next(iterator).rstrip()
@@ -229,8 +233,7 @@ class Savvy():
                 key=parse_key(item.text)
                 self.context.verbose("decrypted: "+key)
                 self.context.output("@savvy: "+key+": "+self.decrypt(item.encrypted_text))
-            else:
-                self.context.output(item.text)
+            self.context.output(item.text)
 
     def view(self, lines):
         for item in items(lines):
