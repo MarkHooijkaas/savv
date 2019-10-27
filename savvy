@@ -20,12 +20,6 @@ class SavvyContext():
         self.outputlines=[]
         self.mergedict=None
 
-    def input_open(self, filename):
-        self.verbose('Reading input file: '+filename)
-        with open(filename) as inp:
-            inputlines = inp.read().splitlines()
-        return inputlines
-
     def start_output(self, defaultfile=None):
         if self.args.outputfile:
             self.outputfile=self.args.outputfile
@@ -50,48 +44,21 @@ class SavvyContext():
             else:
                 self.outputlines.append(str)
 
-
-    def read_mergefile(all=True):
-        # TODO: pass lines, to avoid reading file twice
-        if mergefile:
-            verbose("Reading merge file: "+mergefile)
-            with open(mergefile) as inp:
-                lines = inp.readlines()
-            for l in lines:
-                (savvy, key, value)=parse_line(l)
-                if savvy or (key and all):
-                    debug('reading: '+savvy.ljust(17)+':'+key)
-                    mergedict[key] = (savvy, value)
-    def parse_line(line):
-        savvy=''
-        if line.startswith('@savvy'):
-            savvy=re.sub(':.*','',line).strip()
-            line=re.sub('^[@a-zA-Z_0-9\t ]*:','',line).strip()
-        if not re.search("^[a-zA-Z_0-9\t ]*:",line):
-            return (None, None, None)
-        key=re.sub(':.*','',line).strip()
-        value=re.sub('[^:]*:','',line).strip()
-        if value.startswith('"') and value.endswith('"'):
-            value=value[1:-1]
-            # TODO: embedded quotes might be escaped
-        return (savvy, key, value)
-
-
-
     def verbose(self,str):
         if self.args.quiet:
             return
         print(str)
-    def debug(str):
-        if args.quiet:
+
+    def debug(self, str):
+        if self.args.quiet:
             return
-        if args.debug:
+        if self.args.debug:
             print(str)
 
 ######################################################################################
 # Helper functions
 
-class Bunch:
+class DataStruct:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
@@ -113,39 +80,25 @@ def items(lines):
                 line=next(iterator).rstrip()
                 if not re.search(_RE_MULTILINE_VAULT_AES_LINE, line):
                     raise SystemExit("Expected $ANSIBLE_VAULT;1.1;AES256, got: "+line)
+                result+='\n'+line
                 line=next(iterator).rstrip()
                 encrypted_text=""
                 while re.search('^[ \t]*[0-9a]*[ \t]*$',line):
                     encrypted_text += line.strip()
                     result+='\n'+line
                     line=next(iterator).rstrip()
-                yield Bunch(text=result, encrypted_text=encrypted_text)
+                yield DataStruct(text=result, encrypted_text=encrypted_text)
             elif re.search(_RE_SINGLELINE_VAULT, line):
                 encrypted_text=re.sub(_RE_SINGLELINE_VAULT, '',line)
-                encrypted_text=re.sub('\\\\n','',encrypted_text)
-                yield Bunch(text=line, encrypted_text=encrypted_text)
+                encrypted_text=encrypted_text.replace('\\n','')
+                yield DataStruct(text=line, encrypted_text=encrypted_text)
                 line=next(iterator).rstrip()
             else:
-                yield Bunch(text=line, encrypted_text=None)
+                yield DataStruct(text=line, encrypted_text=None)
                 line=next(iterator).rstrip()
     except StopIteration:
         if result:
-            yield Bunch(text=result, encrypted_text=encrypted_text)
-
-#def decrypt_line():
-#    while i<len(lines):
-#            str+=lines[i].strip()
-#            i+=1
-#            skipcount+=1
-#        multiline=True
-#    elif parts[1].startswith('!vault'):
-#        match=re.search('!vault[ \t]*\$ANSIBLE_VAULT;1.1;AES256', parts[1])
-#        if match:
-#            str=parts[1][match.end():].replace('\\n','').strip()
-#            skipcount=1
-#    if len(str)>0:
-#        return (parts[0].strip(), decrypt(str).strip(), multiline, skipcount)
-#    return (None,None,False,0)
+            yield DataStruct(text=result, encrypted_text=encrypted_text)
 
 def randomstring(length=16):
     letters = string.ascii_lowercase + string.ascii_uppercase + string.digits
@@ -153,6 +106,8 @@ def randomstring(length=16):
 
 def parse_key(str):
     return re.match("^[^:]*",str).group().strip()
+def parse_remainder(str):
+    return re.sub("^[^:]*:","",str).strip()
 
 class Savvy():
     def __init__(self, password, context):
@@ -161,69 +116,105 @@ class Savvy():
         self.singline_indent=40
         self.multiline_format=True
 
-    def encrypt(self, raw):
+    def encrypt_text(self, raw):
         return VaultAES256.encrypt(raw,self.vault_pass)
-    def decrypt(self, raw):
+    def decrypt_text(self, raw):
         return VaultAES256.decrypt(raw,self.vault_pass)
 
-    def output_encrypted_var(name, value,multiline):
+    def output_encrypted_var(self, name, value,multiline):
         encrypted_value=vault.format_vaulttext_envelope(self.encrypt(value),'AES256')
         if not multiline:
-            indent=' '* (singline_indent-len(name))
+            indent=' '* (self.singline_indent-len(name))
             context.output(name+": !vault " +indent+encrypted_value.replace("\n", "\\n"))
         else:
             context.output(name+": !vault |")
             indent=' '*10
             for line in encrypted_value.splitlines():
-                context.output('%s%s' % (indent, line))
+                context.output(indent + line)
 
 
-    def encrypt_file(lines):
+    def encrypt(self, lines, mergedict):
         context=self.context
+        for key in mergedict:
+            context.debug('mergable key: '+key)
         for item in items(lines):
-            if re.search("^@savyy[ \t]*generate",savvy):
+            if re.search("^@savyy[ \t]*generate",item.text):
                 newvalue=randomstring()
+                key=parse_key(parse_remainder(item.text))
                 context.verbose("generating: "+key) # TODO find key
-                context.utput_encrypted_var(key, newvalue, multiline_format)
+                self.output_encrypted_var(key, newvalue, self.multiline_format)
             elif item.text.startswith("@savvy"):
-                context.debug("removing @savvy line: "+line)
+                context.debug("removing @savvy line: "+item.text)
             elif item.encrypted_text == None:
-                context.debug("keeping non-vault line: "+line)
+                context.debug("keeping non-vault line: "+item.text)
                 context.output(item.text)
             else:
-                key, value=parse_key(item.text)
+                key=parse_key(item.text)
                 if key in mergedict:
-                    newvalue=mergedict[key]
+                    oldvalue=self.decrypt_text(item.encrypted_text)
+                    newvalue=mergedict[key].value
                     mergedict.pop(key)
-                    if value!=newvalue:
+                    if oldvalue!=newvalue:
                         context.verbose("  modified key: "+key)
                         self.output_encrypted_var(key, newvalue)
                         context.debug("skipping %d lines" % count)
                         skipcnt=count
                     else:
-                        self.verbose("unmodified key: "+key)
-                        context.output(line.rstrip())
+                        context.verbose("unmodified key: "+key)
+                        context.output(item.text.rstrip())
                 else:
                     context.debug("unmergable key: "+key)
-                    context.output(line.rstrip())
+                    context.output(item.text.rstrip())
         for key in mergedict:
             context.verbose('unmerged key: '+key)
 
-    def decrypt_file(self, lines):
+    def decrypt(self, lines):
         for item in items(lines):
             if item.encrypted_text:
                 key=parse_key(item.text)
                 self.context.verbose("decrypted: "+key)
-                self.context.output("@savvy: "+key+": "+self.decrypt(item.encrypted_text))
+                self.context.output("@savvy: "+key+": "+self.decrypt_text(item.encrypted_text))
             self.context.output(item.text)
+
+    def split(self, lines):
+        for item in items(lines):
+            if item.encrypted_text:
+                key=parse_key(item.text)
+                self.context.verbose("decrypted: "+key)
+                self.context.output("@savvy: "+key+": "+self.decrypt_text(item.encrypted_text))
 
     def view(self, lines):
         for item in items(lines):
             if item.encrypted_text:
                 key=parse_key(item.text)
-                self.context.output(key+": "+self.decrypt(item.encrypted_text))
+                self.context.output(key+": "+self.decrypt_text(item.encrypted_text))
 
+def read_mergedict(context, mergefile, all=True):
+    # TODO: pass lines, to avoid reading file twice
+    mergedict={}
+    context.verbose("Reading merge file: "+mergefile)
+    with open(mergefile) as inp:
+        lines = inp.readlines()
+    for l in lines:
+        (savvy, key, value)=parse_line(l)
+        if savvy or (key and all):
+            context.debug('reading: '+savvy.ljust(17)+':'+key)
+            mergedict[key] = DataStruct(value=value, savvy=savvy)
+    return mergedict
 
+def parse_line(line):
+    savvy=''
+    if line.startswith('@savvy'):
+        savvy=re.sub(':.*','',line).strip()
+        line=re.sub('^[@a-zA-Z_0-9\t ]*:','',line).strip()
+    if not re.search("^[a-zA-Z_0-9\t ]*:",line):
+        return (None, None, None)
+    key=re.sub(':.*','',line).strip()
+    value=re.sub('[^:]*:','',line).strip()
+    if value.startswith('"') and value.endswith('"'):
+        value=value[1:-1]
+        # TODO: embedded quotes might be escaped
+    return (savvy, key, value)
 
 
 #####################################################################################
@@ -260,6 +251,8 @@ class SavvyCli:
         self.parser.add_argument('command', help=allcommands)
         self.parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
         self.args = self.parser.parse_args()
+        self.context=SavvyContext(self.args)
+
 
     def command(self,name):
         if len(name)<len(self.args.command):
@@ -272,44 +265,58 @@ class SavvyCli:
         else:
             return getpass("Vault Password:")
 
+    def getmergefile(self, defaultfile='savvy.mergefile'):
+        if self.args.mergefile:
+            return self.args.mergefile
+        elif 'SAVVY_MERGEFILE' in os.environ:
+            return os.environ['SAVVY_MERGEFILE']
+        return defaultfile
+
+    def getinputfile(self, defaultfile):
+        if self.args.filename:
+            return self.args.filename
+        elif 'SAVVY_INPUTFILE' in os.environ:
+            return os.environ['SAVVY_INPUTFILE']
+        return defaultfile
+
+    def read_lines(self, defaultfile='group_vars/all/vars.yml'):
+        filename=self.getinputfile(defaultfile)
+        self.context.verbose('Reading input file: '+filename)
+        with open(filename) as inp:
+            return inp.read().splitlines()
+
     def run(self):
         args=self.args
-        context=SavvyContext(self.args)
+        context=self.context
         savvy=Savvy(self.getpass(), context)
         if self.command('encrypt'):
-            open_mergefile('group_vars/all/vars.yml')
-            read_mergefile(all=False)
-            lines=input_open()
-            output_open(args.filename)
-            encrypt_file(lines)
-            output_close()
-        elif self.command('decrypt'):
-            #open_mergefile(None)
-            lines=context.input_open(args.filename)
-            context.start_output(args.filename)
-            savvy.decrypt_file(lines)
+            dict=read_mergedict(context,self.getmergefile(), all=False)
+            lines=self.read_lines()
+            context.start_output()
+            savvy.encrypt(lines, dict)
             context.end_output()
-            #write_mergefile()
-            #if not mergefile:
-            #    output_close()
+        elif self.command('decrypt'):
+            lines=self.read_lines()
+            context.start_output()
+            savvy.decrypt(lines)
+            context.end_output()
         elif self.command('view'):
-            lines=context.input_open(args.filename)
+            lines=self.read_lines()
             context.start_output("-")
             savvy.view(lines)
             context.end_output()
-        elif command('merge'):
+        elif self.command('merge'):
             open_mergefile('savvy.mergefile')
             read_mergefile(all=True)
-            lines=input_open()
+            lines=read_lines()
             output_open(args.filename)
-            encrypt_file(lines)
+            encrypt_lines(lines)
             output_close()
-        elif command('split'):
-            lines=input_open()
-            open_mergefile('savvy.mergefile')
-            output_open(args.filename)
-            decrypt_file(lines)
-            write_mergefile()
+        elif self.command('split'):
+            lines=self.read_lines()
+            context.start_output(self.getmergefile()) # TODO: will overwrite with SAVVY_OUTPUTFILE?
+            savvy.split(lines)
+            context.end_output()
         else:
             raise SystemExit("Unknown command '%s', must be any of %s\n" % (args.command, allcommands))
 
