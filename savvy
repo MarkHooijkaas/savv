@@ -7,7 +7,6 @@ import string
 import argparse
 import os
 import ansible.parsing.vault as vault
-from ansible.parsing.vault import VaultAES256, VaultSecret
 from getpass import getpass
 
 
@@ -110,15 +109,15 @@ def parse_remainder(str):
 
 class Savvy():
     def __init__(self, password, context):
-        self.vault_pass=VaultSecret(password)
+        self.vault_pass=vault.VaultSecret(password)
         self.context=context
         self.singline_indent=40
         self.multiline_format=True
 
     def encrypt_text(self, raw):
-        return VaultAES256.encrypt(raw,self.vault_pass)
+        return vault.VaultAES256.encrypt(raw,self.vault_pass)
     def decrypt_text(self, raw):
-        return VaultAES256.decrypt(raw,self.vault_pass)
+        return vault.VaultAES256.decrypt(raw,self.vault_pass)
 
     def _output_encrypted_var(self, name, value, multiline=True):
         encrypted_value=vault.format_vaulttext_envelope(self.encrypt_text(value),'AES256')
