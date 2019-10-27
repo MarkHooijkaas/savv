@@ -16,12 +16,8 @@ from argparse import RawTextHelpFormatter
 class SavvyContext():
     def __init__(self, args):
         self.args=args
-        self.singline_indent=40
-        self.multiline_format=True
         self.outputfile=None
         self.outputlines=[]
-        self.mergefile=None
-        self.mergelines=None
         self.mergedict=None
 
     def input_open(self, filename):
@@ -30,19 +26,19 @@ class SavvyContext():
             inputlines = inp.read().splitlines()
         return inputlines
 
-    def start_output(self, filename, defaultfile=None):
-        if not filename:
-            self.outputfile=filename
+    def start_output(self, defaultfile=None):
+        if self.args.outputfile:
+            self.outputfile=self.args.outputfile
         else:
             self.outputfile=defaultfile
         if self.outputfile=="-":
             self.outputfile=None
     def end_output(self):
-        if self.outputfile==None or self.outputfile=="-" or args.check:
+        if self.outputfile==None or self.outputfile=="-" or self.args.check:
             return
         else:
-            self.verbose("Writing to file: "+outputfile)
-            f = open(outputfile, "w")
+            self.verbose("Writing to file: "+self.outputfile)
+            f = open(self.outputfile, "w")
             for l in self.outputlines:
                 f.write(l)
     def output(self,str, newline=True):
@@ -54,17 +50,7 @@ class SavvyContext():
             else:
                 self.outputlines.append(str)
 
-    def open_mergefile(defaultfile):
-        global mergelines
-        global mergefile
-        global mergedict
-        if (args.mergefile):
-            mergefile=args.mergefile
-        else:
-            mergefile=defaultfile
-        if mergefile:
-            mergelines=['---', '']
-            mergedict=dict()
+
     def read_mergefile(all=True):
         # TODO: pass lines, to avoid reading file twice
         if mergefile:
@@ -76,12 +62,6 @@ class SavvyContext():
                 if savvy or (key and all):
                     debug('reading: '+savvy.ljust(17)+':'+key)
                     mergedict[key] = (savvy, value)
-    def write_mergefile():
-        if mergelines:
-            verbose("Writing to mergefile: "+mergefile)
-            f = open(mergefile, "w")
-            for l in mergelines:
-                f.write(l+"\n")
     def parse_line(line):
         savvy=''
         if line.startswith('@savvy'):
@@ -178,6 +158,8 @@ class Savvy():
     def __init__(self, password, context):
         self.vault_pass=VaultSecret(password)
         self.context=context
+        self.singline_indent=40
+        self.multiline_format=True
 
     def encrypt(self, raw):
         return VaultAES256.encrypt(raw,self.vault_pass)
@@ -273,7 +255,7 @@ class SavvyCli:
         self.parser.add_argument('-d', '--debug', action='store_true', help='print debug info')
         self.parser.add_argument('-c', '--check', action='store_true', help='check mode (dry-run)')
         self.parser.add_argument('-a', '--ask-password',  action='store_true',help='ask for a password (even if VAULT_PASS is set)')
-        self.parser.add_argument('-o', '--output', help='output file')
+        self.parser.add_argument('-o', '--outputfile', help='output file')
         self.parser.add_argument('-m', '--mergefile', help='merge file with passwords to be split from or merged into main file')
         self.parser.add_argument('command', help=allcommands)
         self.parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
@@ -291,6 +273,7 @@ class SavvyCli:
             return getpass("Vault Password:")
 
     def run(self):
+        args=self.args
         context=SavvyContext(self.args)
         savvy=Savvy(self.getpass(), context)
         if self.command('encrypt'):
@@ -302,15 +285,15 @@ class SavvyCli:
             output_close()
         elif self.command('decrypt'):
             #open_mergefile(None)
-            lines=context.input_open(self.args.filename)
-            context.start_output("-")
+            lines=context.input_open(args.filename)
+            context.start_output(args.filename)
             savvy.decrypt_file(lines)
             context.end_output()
             #write_mergefile()
             #if not mergefile:
             #    output_close()
         elif self.command('view'):
-            lines=context.input_open(self.args.filename)
+            lines=context.input_open(args.filename)
             context.start_output("-")
             savvy.view(lines)
             context.end_output()
