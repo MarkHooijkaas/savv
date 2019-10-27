@@ -121,7 +121,7 @@ class Savvy():
     def decrypt_text(self, raw):
         return VaultAES256.decrypt(raw,self.vault_pass)
 
-    def output_encrypted_var(self, name, value,multiline):
+    def _output_encrypted_var(self, name, value,multiline):
         encrypted_value=vault.format_vaulttext_envelope(self.encrypt(value),'AES256')
         if not multiline:
             indent=' '* (self.singline_indent-len(name))
@@ -131,7 +131,6 @@ class Savvy():
             indent=' '*10
             for line in encrypted_value.splitlines():
                 context.output(indent + line)
-
 
     def encrypt(self, lines, mergedict):
         context=self.context
@@ -156,9 +155,7 @@ class Savvy():
                     mergedict.pop(key)
                     if oldvalue!=newvalue:
                         context.verbose("  modified key: "+key)
-                        self.output_encrypted_var(key, newvalue)
-                        context.debug("skipping %d lines" % count)
-                        skipcnt=count
+                        self._output_encrypted_var(key, newvalue)
                     else:
                         context.verbose("unmodified key: "+key)
                         context.output(item.text.rstrip())
