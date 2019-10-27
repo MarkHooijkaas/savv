@@ -223,7 +223,7 @@ class SavvyCli:
         - savvy decrypt: decrypt all !vault variables in a file with special @savvy marker
         - savvy split :  decrypt all !vault variables in a separate mergefile
         - savvy encrypt: encrypt all @savvy annotated variables in a file
-        - savvy merge:   encrypt all variables from a mergefile into the main file (not implemented yet)
+        - savvy merge:   encrypt all variables from a mergefile into the main file
         - savvy view:    show all encrypted variables in a file
         - savvy edit:    decrypt, edit, and re-encrypt (not implemented yet)
 
