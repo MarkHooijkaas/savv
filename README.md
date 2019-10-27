@@ -1,7 +1,7 @@
 # savvy-tools
 Single Ansible Vault Variable encrYpt/decrYpt Tools
 
-This set of tools is meant to use single variables in a normal unencryted vars file that are encrypted with ansible-vault.
+This set of tools is meant to use single variables in a normal unencrypted vars file that are encrypted with ansible-vault.
 Ansible playbooks support the use of these variables, but the tooling to encrypt and decrypt these vars can be better.
 
 The tools are:
@@ -123,7 +123,7 @@ There are several rules trying to be as easy to use, and consequent:
 - There will always be only one file written.
 - This file will only be written at the end of the command, to prevent overwriting the file when errors occur.
 - The default outputfile for `decrypt`, `encrypt` and `merge` will be the inputfile, thus changing the inputfile
-- The default outputfile for `split` it will be the file named savvy.merge. 
+- The default outputfile for `split` it will be the file named savvy.merge.
 - The outptufile specified by commandline `-o` will take highest precedence, except for `split` where the `-m` is even higher
 - The outputfile precedence is:
   - *command line option `-m` or `--mergefile`: only for `split` command*
@@ -145,4 +145,4 @@ This is summarized in the table below, with the difference highlighted:
 | split   | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | **-m mergefile** <br/> -o outputfile <br/> **SAVVY_MERGEFILE** <br/> **savvy.mergefile** |
 | encrypt | file <br/> SAVVY_INPUTFILE <br/> vars.yml |  **inputfile** | -o outputfile <br/> SAVVY_OUTPUT <br/> **inputfile** |
 | merge | file <br/> SAVVY_INPUTFILE <br/> vars.yml | -m mergefile <br/> SAVVY_MERGEFILE <br/> **savvy.mergefile** | -o outputfile <br/> SAVVY_OUTPUT <br/> **inputfile** |
-| view | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | | 
+| view | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | |
