@@ -238,7 +238,7 @@ class SavvyCli:
         - savvy ed    will edit
         '''
 
-        allcommands="decrypt, encrypt, view, split, merge"
+        self.allcommands="decrypt, encrypt, view, split, merge"
         self.parser = argparse.ArgumentParser(
             description='Single Ansible Vault Var encrYpter/decrYpter',
             epilog=epilogtext,
@@ -249,7 +249,7 @@ class SavvyCli:
         self.parser.add_argument('-a', '--ask-password',  action='store_true',help='ask for a password (even if VAULT_PASS is set)')
         self.parser.add_argument('-o', '--outputfile', help='output file')
         self.parser.add_argument('-m', '--mergefile', help='merge file with passwords to be split from or merged into main file')
-        self.parser.add_argument('command', help=allcommands)
+        self.parser.add_argument('command', help=self.allcommands)
         self.parser.add_argument('filename', nargs='?', default='group_vars/all/vars.yml', help='file to work on')
         self.args = self.parser.parse_args()
         self.context=SavvyContext(self.args)
@@ -319,7 +319,7 @@ class SavvyCli:
             savvy.split(lines)
             context.end_output()
         else:
-            raise SystemExit("Unknown command '%s', must be any of %s\n" % (args.command, allcommands))
+            raise SystemExit("Unknown command '%s', must be any of %s or a beginning of those letters, e.g enc for encrypt\n" % (self.args.command, self.allcommands))
 
 
 
