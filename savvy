@@ -140,7 +140,7 @@ class Savvy():
             if re.search("^@savyy[ \t]*generate",item.text):
                 newvalue=randomstring()
                 key=parse_key(parse_remainder(item.text))
-                context.verbose("generating: "+key) # TODO find key
+                context.verbose("generating: "+key)
                 self.output_encrypted_var(key, newvalue, self.multiline_format)
             elif item.text.startswith("@savvy"):
                 context.debug("removing @savvy line: "+item.text)
@@ -272,7 +272,7 @@ class SavvyCli:
             return os.environ['SAVVY_MERGEFILE']
         return defaultfile
 
-    def getinputfile(self, defaultfile):
+    def getinputfile(self, defaultfile='group_vars/all/vars.yml'):
         if self.args.filename:
             return self.args.filename
         elif 'SAVVY_INPUTFILE' in os.environ:
@@ -290,14 +290,14 @@ class SavvyCli:
         context=self.context
         savvy=Savvy(self.getpass(), context)
         if self.command('encrypt'):
-            dict=read_mergedict(context,self.getmergefile(), all=False)
+            dict=read_mergedict(context,self.getinputfile(), all=False)
             lines=self.read_lines()
-            context.start_output()
+            context.start_output(self.getinputfile())
             savvy.encrypt(lines, dict)
             context.end_output()
         elif self.command('decrypt'):
             lines=self.read_lines()
-            context.start_output()
+            context.start_output(self.getinputfile())
             savvy.decrypt(lines)
             context.end_output()
         elif self.command('view'):
