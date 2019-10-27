@@ -108,7 +108,7 @@ Anything after the colon will be the password (with leading and trailing whitesp
 ## Input, output and merge files
 When a user issues a command it can take several arguments about the files.
 ```
-savvy <command> inputfile -m mergefile -o outputfile
+savvy <command> [<inputfile>] [-m <mergefile>] [-o <outputfile>]
 ```
 Furthermore several environment variable can be used:
 - SAVVY_INPUTFILE
@@ -116,15 +116,33 @@ Furthermore several environment variable can be used:
 - SAVVY_OUTPUTFILE
 
 There are several rules trying to be as easy to use, and consequent:
-- There will always be only one file written. 
-- For decrypt, encrypt and merge that will normall be the inputfile, unless otherwise specified.
-- For split it will be the file named savvy.merge unless otherwise specified.
-
-This is summarized in the table below:
+- The inputfile precedence is:
+  - command line parameter `<inputfile>`
+  - environment option SAVVY_INPUTFILE
+  - default value: vars.yml
+- There will always be only one file written.
+- This file will only be written at the end of the command, to prevent overwriting the file when errors occur.
+- The default outputfile for `decrypt`, `encrypt` and `merge` will be the inputfile, thus changing the inputfile
+- The default outputfile for `split` it will be the file named savvy.merge. 
+- The outptufile specified by commandline `-o` will take highest precedence, except for `split` where the `-m` is even higher
+- The outputfile precedence is:
+  - *command line option `-m` or `--mergefile`: only for `split` command*
+  - command line option `-o` or `--outputfile`
+  - *environment option SAVVY_MERGEFILE: only for `split` command*
+  - environment option SAVVY_OUTPUTFILE: for other commands
+  - default value
+- For encrypt and merge input is read form a mergefile
+  - for `encrypt` the inputfile is used, but only `@savvy` lines are parsed
+  - for `merge` a mergefile can be specified:
+    * command line option `-m` or `--mergefile`
+    * environment option SAVVY_MERGEFILE
+    * default value: savvy.mergefile
+This is summarized in the table below, with the difference highlighted:
 
 | command | inputfile | merge-input | outputfile |
 |---------|-----------|-------------|------------|
 | decrypt | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | -o outputfile <br/> SAVVY_OUTPUT <br/> **inputfile** |
-| split   | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | -m mergefile <br/> -o outputfile <br/> SAVVY_MERGEFILE <br/> **savvy.mergefile** |
-| encrypt | file <br/> SAVVY_INPUTFILE <br/> vars.yml | -m mergefile <br/> SAVVY_MERGEFILE <br/> **inputfile** | -o outputfile <br/> SAVVY_OUTPUT <br/> inputfile |
-| merge | file <br/> SAVVY_INPUTFILE <br/> vars.yml | -m mergefile <br/> SAVVY_MERGEFILE <br/> **savvy.mergefile** | -o outputfile <br/> SAVVY_OUTPUT <br/> inputfile |
+| split   | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | **-m mergefile** <br/> -o outputfile <br/> **SAVVY_MERGEFILE** <br/> **savvy.mergefile** |
+| encrypt | file <br/> SAVVY_INPUTFILE <br/> vars.yml |  **inputfile** | -o outputfile <br/> SAVVY_OUTPUT <br/> **inputfile** |
+| merge | file <br/> SAVVY_INPUTFILE <br/> vars.yml | -m mergefile <br/> SAVVY_MERGEFILE <br/> **savvy.mergefile** | -o outputfile <br/> SAVVY_OUTPUT <br/> **inputfile** |
+| view | file <br/> SAVVY_INPUTFILE <br/> vars.yml | | | 
