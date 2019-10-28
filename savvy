@@ -222,8 +222,8 @@ class SavvyCli:
         commands:
         - savvy decrypt: decrypt all !vault variables in a file with special @savvy marker
         - savvy split :  decrypt all !vault variables in a separate mergefile
-        - savvy encrypt: encrypt all @savvy annotated variables in a file
         - savvy merge:   encrypt all variables from a mergefile into the main file
+        - savvy encrypt: encrypt all @savvy annotated variables in a file
         - savvy view:    show all encrypted variables in a file
         - savvy edit:    decrypt, edit, and re-encrypt (not implemented yet)
 
@@ -307,12 +307,11 @@ class SavvyCli:
             savvy.view(lines)
             context.end_output()
         elif self.command('merge'):
-            open_mergefile('savvy.mergefile')
-            read_mergefile(all=True)
-            lines=read_lines()
-            output_open(args.filename)
-            encrypt_lines(lines)
-            output_close()
+            dict=read_mergedict(context, 'savvy.mergefile')
+            lines=self.read_lines()
+            context.start_output(args.filename)
+            savvy.encrypt(lines, dict)
+            context.end_output()
         elif self.command('split'):
             lines=self.read_lines()
             context.start_output(self.getmergefile()) # TODO: will overwrite with SAVVY_OUTPUTFILE?
