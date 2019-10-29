@@ -1,6 +1,21 @@
-# savvy-tools
-Single Ansible Vault Variable encrYpt/decrYpt Tools
+# Single Ansible Vault Variable encrYpt/decrYpt
 
+## Installing savvy
+The quick and dirty way to install the latest version of savvy:
+```
+# get the savvy python file
+wget https://raw.githubusercontent.com/MarkHooijkaas/savvy-tools/master/savvy
+
+# set your vault password in en environment variable where savvy can find it:
+export VAULT_PASS
+read -s VAULT_PASS
+
+# run savvy
+./savvy --help
+```
+Prerequisite is that Python and ansible vault are installed.
+
+## Using savvy
 This set of tools is meant to use single variables in a normal unencrypted vars file that are encrypted with ansible-vault.
 Ansible playbooks support the use of these variables, but the tooling to encrypt and decrypt these vars can be better.
 
