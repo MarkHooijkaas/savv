@@ -157,7 +157,11 @@ class Savvy():
             else:
                 key = parse_key(item.text)
                 if key in mergedict:
-                    oldvalue = self.decrypt_text(item.encrypted_text)
+                    try:
+                        oldvalue = self.decrypt_text(item.encrypted_text)
+                    except vault.AnsibleVaultError as e:
+                        context.verbose("undecryptable : "+key)
+                        oldvalue = ''
                     newvalue = mergedict[key].value
                     mergedict.pop(key)
                     if oldvalue != newvalue:
@@ -194,7 +198,12 @@ class Savvy():
         for item in items(lines):
             if item.encrypted_text:
                 key = parse_key(item.text)
-                self.context.output(key + ": " + self.decrypt_text(item.encrypted_text))
+                try:
+                    value = self.decrypt_text(item.encrypted_text)
+                except vault.AnsibleVaultError as e:
+                    #self.context.verbose("undecryptable : "+key)
+                    value = '????'
+                self.context.output(key + ": " +value)
 
 
 def read_mergedict(context, mergefile, all=True):
