@@ -25,6 +25,7 @@ The tools are:
 * `savvy encrypt`: encrypt all `@savvy` annotated variables in a file
 * `savvy merge`: encrypt all variables from a mergefile into the main file (not implemented yet)
 * `savvy view`: show all encrypted variables in a file
+* `savvy censor`: read stdin and replace all secrets with a censored value
 * `savvy edit`: decrypt, edit, and re-encrypt (not implemented yet)
 
 All commands can be abbreviated with the first letter or letters, for example `savvy d`, `savvy de`, `savvy dec`, `savvy decr` will all decrypt the file. Since both `encrypt` and `edit` start with the letter `e` one must at least use `savvy ed` to edit a file. `savvy e` will encrypt the file
@@ -89,6 +90,24 @@ savvy decode -m savvy.mergefile <file>
 vi savvy.mergefile
 savvy encode -m savvy.mergefile <file>
 ```
+
+## Censoring
+Savvy can also censor all by replacing all secrets with some censored value.
+This basically works by first reading all secrets just as `savvy view` does.
+It also automatically adds the vault password to the secrets to be censored.
+Then the standard input is read, and in each line, any of those secrets is replaced
+by `@censored<key>`  where the key is the key of that secret.
+This way logfiles can be filtered so that no secrets are shown,
+but it is clear which secret was used.
+
+The typical way to use this would be to censor all output from a playbook:
+```
+ansible-playbook ... | savvy censor
+```
+You may specify a different secrets file, just as in `savvy view`,
+but by default `group_vars/all/vars.yml` is used.
+This command might be made more flexible in the future,
+e.g. by adding extra dictionaries of secrets, or using different input and output.
 
 ## Automatic password generation
 It is also possible to let savvy generate a password for you using the following syntax:

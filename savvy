@@ -259,6 +259,7 @@ class SavvyCli:
         - savvy merge:   encrypt all variables from a mergefile into the main file
         - savvy encrypt: encrypt all @savvy annotated variables in a file
         - savvy view:    show all encrypted variables in a file
+        - savvy censor   filter all secrets from stdin 
         - savvy edit:    decrypt, edit, and re-encrypt (not implemented yet)
 
         All commands can be abbreviated with the first letter or letters, for example to decrypt:
