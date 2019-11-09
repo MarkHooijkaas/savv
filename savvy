@@ -5,6 +5,7 @@ import os
 import random
 import re
 import string
+import sys
 from getpass import getpass
 
 import ansible.parsing.vault as vault
@@ -202,9 +203,22 @@ class Savvy():
         for item in items(lines):
             if item.encrypted_text:
                 key = parse_key(item.text)
-                    value = self.decrypt_text(item.encrypted_text, '???')
+                value = self.decrypt_text(item.encrypted_text, '???')
                 self.context.output(key + ": " +value)
 
+    def secrets(self, lines):
+        result = {}
+        for item in items(lines):
+            if item.encrypted_text:
+                key = parse_key(item.text)
+                value = self.decrypt_text(item.encrypted_text, '???')
+                result[key] = value
+        return result
+
+    def censor(self, line, dict):
+        for key, value in dict.items():
+            line = line.replace(value, '@censored<'+key+'>')
+        return line
 
 def read_mergedict(context, mergefile, all=True):
     # TODO: pass lines, to avoid reading file twice
@@ -315,7 +329,8 @@ class SavvyCli:
     def run(self):
         args = self.args
         context = self.context
-        savvy = Savvy(self.getpass(), context)
+        vault_pass = self.getpass()
+        savvy = Savvy(vault_pass, context)
         if self.command('encrypt'):
             dict = read_mergedict(context, self.getinputfile(), all=False)
             lines = self.read_lines()
@@ -344,6 +359,12 @@ class SavvyCli:
             # TODO: will overwrite with SAVVY_OUTPUTFILE?
             savvy.split(lines)
             context.end_output()
+        elif self.command('censor'):
+            lines = self.read_lines()
+            dict = savvy.secrets(lines)
+            dict['VAULT_PASS'] = vault_pass
+            for line in sys.stdin:
+                print(savvy.censor(line.rstrip(), dict))
         else:
             raise SystemExit(
                 "Unknown command '%s', must be any of %s or a beginning of those letters, e.g enc for encrypt\n" %
