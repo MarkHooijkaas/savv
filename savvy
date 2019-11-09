@@ -125,8 +125,14 @@ class Savvy():
     def encrypt_text(self, raw):
         return vault.VaultAES256.encrypt(raw, self.vault_pass)
 
-    def decrypt_text(self, raw):
-        return vault.VaultAES256.decrypt(raw, self.vault_pass)
+    def decrypt_text(self, raw, default=vault.AnsibleVaultError):
+        if default == vault.AnsibleVaultError:
+            return vault.VaultAES256.decrypt(raw, self.vault_pass)
+        try:
+            return vault.VaultAES256.decrypt(raw, self.vault_pass)
+        except vault.AnsibleVaultError as e:
+            return default
+
 
     def _output_encrypted_var(self, name, value, multiline=True):
         encrypted_value = vault.format_vaulttext_envelope(self.encrypt_text(value), 'AES256')
@@ -157,11 +163,9 @@ class Savvy():
             else:
                 key = parse_key(item.text)
                 if key in mergedict:
-                    try:
-                        oldvalue = self.decrypt_text(item.encrypted_text)
-                    except vault.AnsibleVaultError as e:
+                    oldvalue = self.decrypt_text(item.encrypted_text, None)
+                    if oldvalue is None:
                         context.verbose("undecryptable : "+key)
-                        oldvalue = ''
                     newvalue = mergedict[key].value
                     mergedict.pop(key)
                     if oldvalue != newvalue:
@@ -198,11 +202,7 @@ class Savvy():
         for item in items(lines):
             if item.encrypted_text:
                 key = parse_key(item.text)
-                try:
-                    value = self.decrypt_text(item.encrypted_text)
-                except vault.AnsibleVaultError as e:
-                    #self.context.verbose("undecryptable : "+key)
-                    value = '????'
+                    value = self.decrypt_text(item.encrypted_text, '???')
                 self.context.output(key + ": " +value)
 
 
