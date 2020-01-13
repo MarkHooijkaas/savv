@@ -74,9 +74,9 @@ def items(lines):
     iterator = iter(lines)
     line = next(iterator).rstrip()
     try:
-        result = None
         encrypted_text = None
         while True:
+            result = None
             if re.search(_RE_MULTILINE_VAULT_LINE, line):
                 result = line
                 line = next(iterator).rstrip()
@@ -105,7 +105,7 @@ def items(lines):
 
 def randomstring(length=16):
     letters = string.ascii_lowercase + string.ascii_uppercase + string.digits
-    return ''.merge(random.SystemRandom().choice(letters) for i in range(length))
+    return ''.join(random.SystemRandom().choice(letters) for i in range(length))
 
 
 def parse_key(str):
@@ -155,9 +155,9 @@ class Savvy():
                 newvalue = randomstring()
                 key = parse_key(parse_remainder(item.text))
                 context.verbose("generating: " + key)
-                self.output_encrypted_var(key, newvalue, self.multiline_format)
-            elif re.search("^@savvy[ \t]*merge", item.text):
-                context.debug("removing merge: " + parse_key(parse_remainder(item.text)))
+                self._output_encrypted_var(key, newvalue, self.multiline_format)
+            elif re.search("^@savvy[ \t]*replace", item.text):
+                context.debug("removing replace instruction: " + parse_key(parse_remainder(item.text)))
             elif re.search("^@savvy[ \t]*new", item.text) or re.search("^@savvy[ \t]*:", item.text):
                 remainder = parse_remainder(item.text)
                 key = parse_key(remainder)
@@ -196,7 +196,7 @@ class Savvy():
             if item.encrypted_text:
                 key = parse_key(item.text)
                 self.context.verbose("decrypted: " + key)
-                self.context.output("@savvy merge: " + key + ": " + self.decrypt_text(item.encrypted_text))
+                self.context.output("@savvy replace: " + key + ": " + self.decrypt_text(item.encrypted_text))
             self.context.output(item.text)
 
     def split(self, lines):
@@ -204,7 +204,7 @@ class Savvy():
             if item.encrypted_text:
                 key = parse_key(item.text)
                 self.context.verbose("decrypted: " + key)
-                self.context.output("@savvy merge: " + key + ": " + self.decrypt_text(item.encrypted_text))
+                self.context.output("@savvy replace: " + key + ": " + self.decrypt_text(item.encrypted_text))
 
     def view(self, lines):
         for item in items(lines):
@@ -248,7 +248,7 @@ def parse_line(line):
         line = re.sub('^[@a-zA-Z_0-9\t ]*:', '', line).strip()
     if not re.search("^[a-zA-Z_0-9\t ]*:", line):
         return (None, None, None)
-    if not re.search("merge", savvy):
+    if not re.search("replace", savvy):
         return (None, None, None)
     key = re.sub(':.*', '', line).strip()
     value = re.sub('[^:]*:', '', line).strip()

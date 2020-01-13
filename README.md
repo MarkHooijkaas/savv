@@ -59,7 +59,7 @@ some_password: !vault |
 
 when decrypting with `savvy decrypt` this will become:
 ```
-@savvy merge: some_password: my_secret_value
+@savvy replace: some_password: my_secret_value
 some_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           65653039303432386134336262653763303264383664383862616330343032653934623465643937
@@ -71,7 +71,7 @@ some_password: !vault |
 When (re)encrypting this file with `savvy encrypt`, savvy will check if the new value in the first line is still the same as the old secret value when decrypting the second line. If this is the same, then the old encryption of the second part is being used, so there will be no change for version control.
 
 ## Splitting and merging
-Instead of decrypting all vault vars and placing them in the original file with a `@savvy merge` marker,
+Instead of decrypting all vault vars and placing them in the original file with a `@savvy replace` marker,
 it is also possible to put them in a separate "mergefile".
 The secrets in this mergefile can be edited, and then merged back into the original file using the `savvy merge` command.
 The flow would be something like
