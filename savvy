@@ -151,13 +151,19 @@ class Savvy():
         for key in mergedict:
             context.debug('mergable key: ' + key)
         for item in items(lines):
-            if re.search("^@savyy[ \t]*generate", item.text):
+            if re.search("^@savvy[ \t]*generate", item.text):
                 newvalue = randomstring()
                 key = parse_key(parse_remainder(item.text))
                 context.verbose("generating: " + key)
                 self.output_encrypted_var(key, newvalue, self.multiline_format)
-            elif item.text.startswith("@savvy"):
-                context.debug("removing @savvy line: " + item.text)
+            elif re.search("^@savvy[ \t]*merge", item.text):
+                context.debug("removing merge: " + parse_key(parse_remainder(item.text)))
+            elif re.search("^@savvy[ \t]*new", item.text) or re.search("^@savvy[ \t]*:", item.text):
+                remainder = parse_remainder(item.text)
+                key = parse_key(remainder)
+                value = parse_remainder(remainder)
+                context.verbose("  new key: " + key)
+                self._output_encrypted_var(key, value)
             elif item.encrypted_text is None:
                 context.debug("keeping non-vault line: " + item.text)
                 context.output(item.text)
@@ -182,14 +188,15 @@ class Savvy():
                     context.debug("unmergable key: " + key)
                     context.output(item.text.rstrip())
         for key in mergedict:
-            context.verbose('unmerged key: ' + key)
+            context.verbose('Adding unmerged key to end: ' + key)
+            self._output_encrypted_var(key, mergedict[key].value)
 
     def decrypt(self, lines):
         for item in items(lines):
             if item.encrypted_text:
                 key = parse_key(item.text)
                 self.context.verbose("decrypted: " + key)
-                self.context.output("@savvy: " + key + ": " + self.decrypt_text(item.encrypted_text))
+                self.context.output("@savvy merge: " + key + ": " + self.decrypt_text(item.encrypted_text))
             self.context.output(item.text)
 
     def split(self, lines):
@@ -197,7 +204,7 @@ class Savvy():
             if item.encrypted_text:
                 key = parse_key(item.text)
                 self.context.verbose("decrypted: " + key)
-                self.context.output("@savvy: " + key + ": " + self.decrypt_text(item.encrypted_text))
+                self.context.output("@savvy merge: " + key + ": " + self.decrypt_text(item.encrypted_text))
 
     def view(self, lines):
         for item in items(lines):
@@ -241,6 +248,8 @@ def parse_line(line):
         line = re.sub('^[@a-zA-Z_0-9\t ]*:', '', line).strip()
     if not re.search("^[a-zA-Z_0-9\t ]*:", line):
         return (None, None, None)
+    if not re.search("merge", savvy):
+        return (None, None, None)
     key = re.sub(':.*', '', line).strip()
     value = re.sub('[^:]*:', '', line).strip()
     if value.startswith('"') and value.endswith('"'):
@@ -259,7 +268,7 @@ class SavvyCli:
         - savvy merge:   encrypt all variables from a mergefile into the main file
         - savvy encrypt: encrypt all @savvy annotated variables in a file
         - savvy view:    show all encrypted variables in a file
-        - savvy censor   filter all secrets from stdin 
+        - savvy censor   filter all secrets from stdin
         - savvy edit:    decrypt, edit, and re-encrypt (not implemented yet)
 
         All commands can be abbreviated with the first letter or letters, for example to decrypt:

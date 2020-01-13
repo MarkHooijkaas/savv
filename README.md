@@ -59,7 +59,7 @@ some_password: !vault |
 
 when decrypting with `savvy decrypt` this will become:
 ```
-@savvy: some_password: my_secret_value
+@savvy merge: some_password: my_secret_value
 some_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           65653039303432386134336262653763303264383664383862616330343032653934623465643937
@@ -71,7 +71,7 @@ some_password: !vault |
 When (re)encrypting this file with `savvy encrypt`, savvy will check if the new value in the first line is still the same as the old secret value when decrypting the second line. If this is the same, then the old encryption of the second part is being used, so there will be no change for version control.
 
 ## Splitting and merging
-Instead of decrypting all vault vars and placing them in the original file with a savvy marker,
+Instead of decrypting all vault vars and placing them in the original file with a `@savvy merge` marker,
 it is also possible to put them in a separate "mergefile".
 The secrets in this mergefile can be edited, and then merged back into the original file using the `savvy merge` command.
 The flow would be something like
@@ -83,12 +83,12 @@ savvy merge <file>
 The default mergefile is `savvy.mergefile`.
 It is also possible to specify a different merge file, using the `-m` or `--mergefile` option.
 This option also works for the normal `savvy decrypt` and `savvy encrypt` commands.
-In fact `split` and `merge` are basically synonyms for `decode` and `encode` with a default mergefile.
+In fact `split` and `merge` are basically synonyms for `decrypt` and `encrypt` with a default mergefile.
 So the example above is similar to:
 ```
-savvy decode -m savvy.mergefile <file>
+savvy decrypt -m savvy.mergefile <file>
 vi savvy.mergefile
-savvy encode -m savvy.mergefile <file>
+savvy encrypt -m savvy.mergefile <file>
 ```
 
 ## Censoring
@@ -118,7 +118,7 @@ When running savvy-encrrypt, this will generate a random password and encrypt th
 By default the password will be 16 alphanumeric characters.
 Future options will make it possible to specify a different length and character set.
 
-## Other @savvy options
+## Future @savvy options
 The `@savvy` annotation can support several options.
 These options must be placed after the `@savvy` annotation and before the colon, separated by spaces.
 Anything after the colon will be the password (with leading and trailing whitespace trimmed).
