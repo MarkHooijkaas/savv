@@ -103,7 +103,7 @@ def items(lines):
             yield DataStruct(text=result, encrypted_text=encrypted_text)
 
 
-def randomstring(length=16):
+def randomstring(length=32):
     letters = string.ascii_lowercase + string.ascii_uppercase + string.digits
     return ''.join(random.SystemRandom().choice(letters) for i in range(length))
 
