@@ -113,7 +113,7 @@ def parse_key(str):
 
 
 def parse_remainder(str):
-    return re.sub("^[^:]*:", "", str).strip()
+    return re.sub("^[^:]*:", "", str, 1).strip()
 
 
 class Savvy():
@@ -245,14 +245,16 @@ def parse_line(line):
     savvy = ''
     if line.startswith('@savvy'):
         savvy = re.sub(':.*', '', line).strip()
-        line = re.sub('^[@a-zA-Z_0-9\t ]*:', '', line).strip()
+        line = re.sub('^[@a-zA-Z_0-9\t ]*:', '', line,1).strip()
     if not re.search("^[a-zA-Z_0-9\t ]*:", line):
         return (None, None, None)
     if not re.search("replace", savvy):
         return (None, None, None)
     key = re.sub(':.*', '', line).strip()
-    value = re.sub('[^:]*:', '', line).strip()
+    value = re.sub('[^:]*:', '', line,1).strip()
     if value.startswith('"') and value.endswith('"'):
+        value = value[1:-1]
+    if value.startswith("'") and value.endswith("'"):
         value = value[1:-1]
         # TODO: embedded quotes might be escaped
     return (savvy, key, value)
