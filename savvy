@@ -339,6 +339,10 @@ class SavvyCli:
             return inp.read().splitlines()
 
     def run(self):
+        if self.command('generate'):
+            print(randomstring())
+            return
+
         args = self.args
         context = self.context
         vault_pass = self.getpass()
