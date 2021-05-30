@@ -1,4 +1,27 @@
-# Single Ansible Vault Variable encrYpt/decrYpt
+# savv and savvy
+This project contains two programs:
+- savv: securing variable using bash and openssl for generic purposes
+- savvy: securing variablies for ansible vault
+
+Originaly only savvy was developed, specifically for use in a ansible based project.
+For a later project savv was added, on the same principles of being reversible.
+savv is more lightweight (only requires bash and openssl) and can be used for various applications using bash.
+savvy needs python and some ansible libraries, and is only usuable for ansible.
+
+The both have similar features (savv syntax shown):
+- encrypt secrets annotated with @savv:encrypt:<secret>
+- generate and encrypt new secrets with @savv:generate:<length>
+- view encrypted secrets
+- easily reversibly decrypt to edit secrets, while keeping unchanged secrets unchanged
+
+The last part is tricky.
+If one would just decrypt the file, edit it and re-encrypt, the re-encryption would change the encrypted result even if the secret is unchanged.
+This is not desirable for version control systems like git.
+
+## SAVV: Secure Any Variable reVersibly
+
+
+## SAVVY: Single Ansible Vault Variable encrYpt/decrYpt
 
 ## Installing savvy
 The quick and dirty way to install the latest version of savvy:

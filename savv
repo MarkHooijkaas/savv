@@ -1,0 +1,141 @@
+#!/bin/env bash
+
+encrypt_str() {
+    echo $( echo $1 | openssl aes-256-cbc -a -A -salt -pbkdf2 -pass pass:$SAVV_PASSWORD )
+}
+
+decrypt_str() {
+    echo $( echo $1 | openssl aes-256-cbc -d -a -A -pbkdf2 -pass pass:$SAVV_PASSWORD )
+}
+
+generate_password() {
+    if [[ $1 == @generate:* ]]; then
+        length=${1#@generate:}
+    else
+        length=32
+    fi
+    echo $(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $length | head -n 1)
+}
+
+reverse_vars() {
+    cat $1 | while IFS= read -r line; do
+        echo $line
+        if [[ ! ${line/decrypt_str} == $line ]]; then
+            varname=${line%=\$(decrypt_str*}
+            secured=${line#*\$(decrypt_str }
+            secured=${secured%)}
+            value=$(decrypt_str $secured)
+            echo $line | sed  -e "s|\$(decrypt_str $secured)|@savv($value)|"
+        fi
+    done
+}
+
+secure_file() {
+    FILE=$1
+    IFS=$'\n' lines=($(grep '@savv(' $FILE))
+    for line in "${lines[@]}"; do
+        value=${line##*@savv(}
+        value=${value%%)*}
+        secret=$value
+        if [[ $value == @read ]]; then
+            echo Provide secret for $line
+            read -u 0 -s secret
+        elif [[ $value == @generate* ]]; then
+            secret=$(generate_password $value)
+        fi
+        secured=$(encrypt_str $secret)
+        if ${DRY_RUN:-false}; then
+            echo $line | sed -e "s|@savv($value)|\$(decrypt_str $secured)|"
+        else
+            echo securing ${line/@savv(*/@savv(...)}
+            # replace / in line with \/ for sed search
+            line=${line//\//\\\/}
+            sed -i -e "/$line/s|@savv($value)|\$(decrypt_str $secured)|" $FILE
+        fi
+    done
+}
+
+show_help() {
+cat <<EOF
+Usage: ${0##*/} [options] <file>...
+
+The purpose of savv is working with encrypted (shell) variables
+Options can be:
+    -h|--help               display this help and exit
+    -p|--password           provide a password for encryption/decryption
+    -g|-generate[:<len>]    generate a random string of provided length (default 32) and exit
+    -r|--reverse            reverse the encyption to view in a format to easily edit
+    -e|--export             show the decrypted values in a format that can be used in scripts
+    -n|--no-change          don't change the file, output changes (dry-run)
+
+If none of the --generate, --reverse or --export options are given, the default mode is to encrypt.
+In this mode single variables that are prefixed with @savv are encrypted. Examples are
+    @savv VAR1 secret1
+    @savv VAR2 @read
+    @savv VAR3 @generate
+    @savv VAR4 @generate:64
+A value of @read will ask the user for a password.
+A value of @generate will generate a password of length 32
+The lines will be replaced with something like:
+    VAR1=\$(decrypt_str ...)
+
+When using the --export option the vars are output in decrypted format. This output can be used in a script, e.g.
+    eval \$(savv -e -p \$SAVV_MASTER_PASSWORD  ~/savv-passwords)
+
+The decrypt_str is a function with the following defintion
+    decrypt_str() {
+        echo \$( echo $1 | openssl aes-256-cbc -d -a -A -pbkdf2 -pass pass:\$SAVV_PASSWORD )
+    }
+EOF
+}
+command=secure_file
+while [ ! $# -eq 0 ]; do
+    case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -p|--password)
+            if [[ -z ${2-} ]] ; then
+                echo options --password and -p need an password as argument
+                exit 1
+            fi
+            SAVV_PASSWORD=$2
+            shift
+            ;;
+        -g*|--generate*)
+            echo $(generate_password ${1/*:/@generate:})
+            exit 0
+            ;;
+        -r|--reverse)
+            command=reverse_vars
+            ;;
+        -e|--export)
+            command=export_vars
+            ;;
+        -n|--no-change)
+            DRY_RUN=true
+            ;;
+        *)  # Default case: No more options, so break out of the loop.
+            break
+    esac
+    shift
+done
+
+if [[ -z $SAVV_PASSWORD ]]; then
+    echo SAVV_PASSWORD is not defined, use the following statements
+    printf "  export SAVV_PASSWORD"
+    printf "  read -s SAVV_PASSWORD"
+        exit 1
+elif [[ $SAVV_PASSWORD == @read ]]; then
+    echo enter the password
+    read -s SAVV_PASSWORD
+elif [[ $SAVV_PASSWORD == @generate ]]; then
+    SAVV_PASSWORD=$(generate_password)
+    echo enncrypting variables with generated key $SAVV_PASSWORD
+fi
+
+
+for file in $@; do
+    $command $file
+done
