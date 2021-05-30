@@ -1,11 +1,11 @@
 # savv and savvy
 This project contains two programs:
 - savv: securing variable using bash and openssl for generic purposes
-- savvy: securing variablies for ansible vault
+- savvy: securing variables for ansible vault
 
 Originaly only savvy was developed, specifically for use in a ansible based project.
 For a later project savv was added, on the same principles of being reversible.
-savv is more lightweight (only requires bash and openssl) and can be used for various applications using bash.
+savv is more lightweight (only requires bash and openssl) and can be used for various applications such as bash shell scripts.
 savvy needs python and some ansible libraries, and is only usuable for ansible.
 
 The both have similar features (savv syntax shown):
@@ -19,7 +19,34 @@ If one would just decrypt the file, edit it and re-encrypt, the re-encryption wo
 This is not desirable for version control systems like git.
 
 ## SAVV: Secure Any Variable reVersibly
+```
+Usage: savv [options] <file>...
 
+The purpose of savv is working with encrypted (shell) variables
+Options can be:
+    -h|--help               display this help and exit
+    -p|--password           provide a password for encryption/decryption
+    -g|-generate[:<len>]    generate a random string of provided length (default 32) and exit
+    -m|--modify             reverse the encyption to view in a format to easily edit
+    -v|--view               view the decrypted values in a format that can be used in scripts
+    -n|--no-change          don't change the file, output changes (dry-run)
+
+If none of the --generate, --reverse or --export options are given, the default mode is to encrypt.
+In this mode single variables that are prefixed with @savv are encrypted. Examples are
+    export VAR1=@savv:encrypt:secret1
+    export VAR2=@savv:read
+    export VAR3=@savv:generate
+    export VAR4=@savv:generate:64
+A label of @savv:read will ask the user for a password.
+A label of @savv:generate will generate a password of length 32
+The lines will be replaced with something like:
+    VAR1=$(decrypt_str ...)
+
+The decrypt_str is a function with the following defintion
+    decrypt_str() {
+        echo $( echo  | openssl aes-256-cbc -d -a -A -pbkdf2 -pass pass:$SAVV_PASSWORD )
+    }
+```
 
 ## SAVVY: Single Ansible Vault Variable encrYpt/decrYpt
 
