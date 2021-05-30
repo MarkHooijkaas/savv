@@ -34,10 +34,8 @@ Options can be:
 If none of the --generate, --reverse or --export options are given, the default mode is to encrypt.
 In this mode single variables that are prefixed with @savv are encrypted. Examples are
     export VAR1=@savv:encrypt:secret1
-    export VAR2=@savv:read
     export VAR3=@savv:generate
     export VAR4=@savv:generate:64
-A label of @savv:read will ask the user for a password.
 A label of @savv:generate will generate a password of length 32
 The lines will be replaced with something like:
     VAR1=$(decrypt_str ...)

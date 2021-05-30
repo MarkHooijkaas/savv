@@ -1,8 +1,8 @@
 #!/bin/env bash
 
-function info()    { ${INFO-true} && echo $* || true; }
-function verbose() { ${VERBOSE-false} && echo $* || true; }
-function debug()   { ${DEBUG-false} && echo $* || true; }
+function info()    { ${INFO-true} && printf "%s\n" "$*" || true; }
+function verbose() { ${VERBOSE-false} && printf "%s\n" "$*" || true; }
+function debug()   { ${DEBUG-false} && printf "%s\n" "$*" || true; }
 function error() { echo ERROR 1>&2 $*; exit 1; }
 
 encrypt_str() {
@@ -24,6 +24,71 @@ generate_password() {
     secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $length | head -n 1)
 }
 
+parse_savv_command() {
+    local savv_line=$1
+    local cmd=${savv_line%%:*}
+    local remainder=${savv_line#*:}
+    case $cmd in
+        e|enc|encrypt)
+            secret=$remainder
+            secured=$(encrypt_str $secret)
+            info "securing:   ${line/@savv:*/}@savv:encrypt:..."
+            ;;
+        g|gen|generate)
+            generate_password $remainder
+            secured=$(encrypt_str $secret)
+            info "generating: ${line}"
+            ;;
+        orig)
+            local orig=${remainder%%:*}
+            local new=${remainder##*:}
+            secret=${new##*:}
+            if [[ $(decrypt_str $orig) == $secret ]]; then
+                info "unchanged:  ${line/@savv*/}@savv:orig"
+                secured=$orig
+            else
+                info "changed:    ${line/@savv:*/}@savv:orig"
+                secured=$(encrypt_str $secret)
+            fi
+            ;;
+        *)  # Default case nothing to do, signalled by empty secret
+            unset secured
+    esac
+}
+
+encrypt_file() {
+    FILE=$1
+    info securing $FILE
+    cat $FILE | while read line; do
+        #printf "%s" $line
+        savv_cmd=${line#*@savv:}
+        parse_savv_command $savv_cmd
+        if [[ -z $secured ]]; then
+            new_line=$line
+        else
+            # replace / in line with \/ for sed search
+            line=${line//\//\\\/}
+            sed -i -e "/$line/s|@savv:.*|\$(decrypt_str $secured)|" $FILE
+        fi
+    done
+}
+
+reverse_file() {
+    FILE=$1
+    info reversing $FILE
+    cat $FILE | while read line; do
+        if [[ ! ${line/decrypt_str} == $line ]]; then
+            secured=$(encrypt_str $secret)
+            secured=${line#*\$(decrypt_str }
+            secured=${secured%)}
+            value=$(decrypt_str $secured)
+            line=${line//\//\\\/}
+            sed -i -e "/$line/s|\$(decrypt_str $secured.*|@savv:orig:$secured:new:$value|" $FILE
+        fi
+    done
+}
+
+
 view_file() {
     cat $1 | while read -r line; do
         if [[ ${line/decrypt_str} == $line ]]; then
@@ -38,52 +103,6 @@ view_file() {
     done
 }
 
-parse_savv_command() {
-    local savv_line=$1
-    local cmd=${savv_line%:*}
-    local remainder=${savv_line##*:}
-    case $cmd in
-        e|enc|encrypt)
-            secret=$remainder
-            ;;
-        m|mod|modify)
-            modify $remainder
-            ;;
-        g|gen|generate)
-            generate_password $remainder
-            ;;
-        r|read)
-            echo Provide secret for $line
-            read -u 0 -s secret
-            ;;
-        *)  # Default case nothing to do, signalled by empty secret
-            unset secret
-    esac
-}
-
-secure_file() {
-    FILE=$1
-    info securing $FILE
-    cat $FILE | while read line; do
-        #printf "%s" $line
-        savv_cmd=${line#*@savv:}
-        parse_savv_command $savv_cmd
-        if [[ -z $secret ]]; then
-            new_line=$line
-        else
-            secured=$(encrypt_str $secret)
-            if ${DRY_RUN:-false}; then
-                echo $line | sed -e "s|@savv($value)|\$(decrypt_str $secured)|"
-            elif ${INLINE:-true}; then
-                echo securing ${line/@savv:*/@savv:$savv_cmd:...}
-                # replace / in line with \/ for sed search
-                line=${line//\//\\\/}
-                sed -i -e "/$line/s|@savv:.*|\$(decrypt_str $secured)|" $FILE
-            fi
-        fi
-    done
-}
-
 show_help() {
 cat <<EOF
 Usage: ${0##*/} [options] <file>...
@@ -91,11 +110,13 @@ Usage: ${0##*/} [options] <file>...
 The purpose of savv is working with encrypted (shell) variables
 Options can be:
     -h|--help               display this help and exit
+    -q|--quiet              show no informational output
     -p|--password           provide a password for encryption/decryption
-    -g|-generate[:<len>]    generate a random string of provided length (default 32) and exit
-    -r|--reverse            reverse the encyption to view in a format to easily edit
+    -g|--generate[:<len>]   generate a random string of provided length (default 32) and exit
+    -e|--encrypt            encrypt the @savv directives in the file
+    -r|--reverse            reverse the encryption to view in a format to easily edit, and re-encrypt
     -v|--view               view the decrypted values in a format that can be used in scripts
-    -n|--no-change          don't change the file, output changes (dry-run)
+       --edit               reverse, edit, and re-encrypt the file(s).
 
 If none of the --generate, --reverse or --export options are given, the default mode is to encrypt.
 In this mode single variables that are prefixed with @savv are encrypted. Examples are
@@ -103,13 +124,9 @@ In this mode single variables that are prefixed with @savv are encrypted. Exampl
     export VAR2=@savv:read
     export VAR3=@savv:generate
     export VAR4=@savv:generate:64
-A label of @savv:read will ask the user for a password.
 A label of @savv:generate will generate a password of length 32
 The lines will be replaced with something like:
     VAR1=\$(decrypt_str ...)
-
-When using the --export option the vars are output in decrypted format. This output can be used in a script, e.g.
-    eval \$(savv -e -p \$SAVV_MASTER_PASSWORD  ~/savv-passwords)
 
 The decrypt_str is a function with the following defintion
     decrypt_str() {
@@ -117,12 +134,21 @@ The decrypt_str is a function with the following defintion
     }
 EOF
 }
-command=secure_file
+
+#command=secure_file
 while [ ! $# -eq 0 ]; do
     case $1 in
         -h|--help)
             show_help
             exit 0
+            ;;
+        -v|--verbose)
+            export VERBOSE=true
+            export INFO=true
+            ;;
+        -q|--quiet)
+            export VERBOSE=false
+            export INFO=false
             ;;
         -p|--password)
             if [[ -z ${2-} ]] ; then
@@ -136,15 +162,18 @@ while [ ! $# -eq 0 ]; do
             echo $(generate_password ${1/*:/@generate:})
             exit 0
             ;;
+        -e|--encrypt)
+            command=encrypt_file
+            ;;
         -r|--reverse)
-            command=reverse_vars
+            command=reverse_file
             ;;
         -v|--view)
             command=view_file
             ;;
-        -n|--no-change)
-            DRY_RUN=true
-            ;;
+        #--edit)
+        #    command=edit_file
+        #    ;;
         *)  # Default case: No more options, so break out of the loop.
             break
     esac

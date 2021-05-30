@@ -1,0 +1,33 @@
+#!/bin/bash
+
+PSW=badsecret
+FILE=tmp/test-reverse
+mkdir -p tmp
+
+cat >$FILE <<EOF
+# This file tests the use of reverse
+export VAR1=@savv:encrypt:some-bad-secret
+export VAR2=@savv:encrypt:another-secret
+export VAR3=@savv:generate:20
+EOF
+./savv --encrypt -p $PSW $FILE
+echo
+echo TEST: After first encryption
+cat $FILE
+echo
+
+./savv --reverse -p $PSW $FILE
+echo TEST: After reversing
+cat $FILE
+echo
+sed -i -e 's/new:another-secret/new:changed-secret/' $FILE
+echo "export NEWVAR=@savv:enc:added-secret" >>$FILE
+echo "export NEWGEN=@savv:generate:64" >>$FILE
+
+./savv --encrypt -p $PSW $FILE
+echo TEST: After re-encryption
+cat $FILE
+echo
+
+echo TEST: Viewing the file
+./savv --view -p $PSW $FILE

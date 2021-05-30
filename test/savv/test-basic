@@ -1,0 +1,18 @@
+#!/bin/bash
+
+PSW=badsecret
+FILE=tmp/test-basic
+mkdir -p tmp
+
+cat >$FILE <<EOF
+export FIXED=@savv:encrypt:some-bad-secret
+export VAR3=@savv:generate
+export VAR4=@savv:generate
+export VAR5=@savv:generate
+VAR4=@savv:generate:64
+EOF
+echo created $FILE
+./savv --encrypt -p $PSW $FILE
+cat $FILE
+echo
+./savv --view -p $PSW $FILE
