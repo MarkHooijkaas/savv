@@ -1,5 +1,10 @@
 #!/bin/env bash
 
+function info()    { ${INFO-true} && echo $* || true; }
+function verbose() { ${VERBOSE-false} && echo $* || true; }
+function debug()   { ${DEBUG-false} && echo $* || true; }
+function error() { echo ERROR 1>&2 $*; exit 1; }
+
 encrypt_str() {
     echo $( echo $1 | openssl aes-256-cbc -a -A -salt -pbkdf2 -pass pass:$SAVV_PASSWORD )
 }
@@ -9,48 +14,72 @@ decrypt_str() {
 }
 
 generate_password() {
-    if [[ $1 == @generate:* ]]; then
-        length=${1#@generate:}
-    else
+    if [[ -z $1 ]]; then
         length=32
+    elif [[ $1 == g* ]]; then
+        length=32
+    else
+        length=${1#@generate:}
     fi
-    echo $(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $length | head -n 1)
+    secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $length | head -n 1)
 }
 
-reverse_vars() {
-    cat $1 | while IFS= read -r line; do
-        echo $line
-        if [[ ! ${line/decrypt_str} == $line ]]; then
+view_file() {
+    cat $1 | while read -r line; do
+        if [[ ${line/decrypt_str} == $line ]]; then
+            printf "%s\n" "$line"
+        else
             varname=${line%=\$(decrypt_str*}
             secured=${line#*\$(decrypt_str }
             secured=${secured%)}
             value=$(decrypt_str $secured)
-            echo $line | sed  -e "s|\$(decrypt_str $secured)|@savv($value)|"
+            printf "%s\n" "$line" | sed  -e "s|\$(decrypt_str $secured)|@savv($value)|"
         fi
     done
 }
 
-secure_file() {
-    FILE=$1
-    IFS=$'\n' lines=($(grep '@savv(' $FILE))
-    for line in "${lines[@]}"; do
-        value=${line##*@savv(}
-        value=${value%%)*}
-        secret=$value
-        if [[ $value == @read ]]; then
+parse_savv_command() {
+    local savv_line=$1
+    local cmd=${savv_line%:*}
+    local remainder=${savv_line##*:}
+    case $cmd in
+        e|enc|encrypt)
+            secret=$remainder
+            ;;
+        m|mod|modify)
+            modify $remainder
+            ;;
+        g|gen|generate)
+            generate_password $remainder
+            ;;
+        r|read)
             echo Provide secret for $line
             read -u 0 -s secret
-        elif [[ $value == @generate* ]]; then
-            secret=$(generate_password $value)
-        fi
-        secured=$(encrypt_str $secret)
-        if ${DRY_RUN:-false}; then
-            echo $line | sed -e "s|@savv($value)|\$(decrypt_str $secured)|"
+            ;;
+        *)  # Default case nothing to do, signalled by empty secret
+            unset secret
+    esac
+}
+
+secure_file() {
+    FILE=$1
+    info securing $FILE
+    cat $FILE | while read line; do
+        #printf "%s" $line
+        savv_cmd=${line#*@savv:}
+        parse_savv_command $savv_cmd
+        if [[ -z $secret ]]; then
+            new_line=$line
         else
-            echo securing ${line/@savv(*/@savv(...)}
-            # replace / in line with \/ for sed search
-            line=${line//\//\\\/}
-            sed -i -e "/$line/s|@savv($value)|\$(decrypt_str $secured)|" $FILE
+            secured=$(encrypt_str $secret)
+            if ${DRY_RUN:-false}; then
+                echo $line | sed -e "s|@savv($value)|\$(decrypt_str $secured)|"
+            elif ${INLINE:-true}; then
+                echo securing ${line/@savv:*/@savv:$savv_cmd:...}
+                # replace / in line with \/ for sed search
+                line=${line//\//\\\/}
+                sed -i -e "/$line/s|@savv:.*|\$(decrypt_str $secured)|" $FILE
+            fi
         fi
     done
 }
@@ -65,17 +94,17 @@ Options can be:
     -p|--password           provide a password for encryption/decryption
     -g|-generate[:<len>]    generate a random string of provided length (default 32) and exit
     -r|--reverse            reverse the encyption to view in a format to easily edit
-    -e|--export             show the decrypted values in a format that can be used in scripts
+    -v|--view               view the decrypted values in a format that can be used in scripts
     -n|--no-change          don't change the file, output changes (dry-run)
 
 If none of the --generate, --reverse or --export options are given, the default mode is to encrypt.
 In this mode single variables that are prefixed with @savv are encrypted. Examples are
-    @savv VAR1 secret1
-    @savv VAR2 @read
-    @savv VAR3 @generate
-    @savv VAR4 @generate:64
-A value of @read will ask the user for a password.
-A value of @generate will generate a password of length 32
+    export VAR1=@savv:encrypt:secret1
+    export VAR2=@savv:read
+    export VAR3=@savv:generate
+    export VAR4=@savv:generate:64
+A label of @savv:read will ask the user for a password.
+A label of @savv:generate will generate a password of length 32
 The lines will be replaced with something like:
     VAR1=\$(decrypt_str ...)
 
@@ -110,8 +139,8 @@ while [ ! $# -eq 0 ]; do
         -r|--reverse)
             command=reverse_vars
             ;;
-        -e|--export)
-            command=export_vars
+        -v|--view)
+            command=view_file
             ;;
         -n|--no-change)
             DRY_RUN=true

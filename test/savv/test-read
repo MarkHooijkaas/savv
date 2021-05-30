@@ -1,0 +1,10 @@
+VAR1 @savv(secret1)
+
+DUmmy
+
+empty
+# VAR2 @savv(@read)
+export VAR3=@savv(@generate)
+export VAR4=@savv(@generate)
+export VAR5=@savv(@generate)
+VAR4=@savv(@generate:64)
