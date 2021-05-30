@@ -25,11 +25,12 @@ Usage: savv [options] <file>...
 The purpose of savv is working with encrypted (shell) variables
 Options can be:
     -h|--help               display this help and exit
+    -q|--quiet              show no informational output
     -p|--password           provide a password for encryption/decryption
-    -g|-generate[:<len>]    generate a random string of provided length (default 32) and exit
-    -m|--modify             reverse the encyption to view in a format to easily edit
+    -g|--generate[:<len>]   generate a random string of provided length (default 32) and exit
+    -e|--encrypt            encrypt the @savv directives in the file
+    -r|--reverse            reverse the encryption to view in a format to easily edit, and re-encrypt
     -v|--view               view the decrypted values in a format that can be used in scripts
-    -n|--no-change          don't change the file, output changes (dry-run)
 
 If none of the --generate, --reverse or --export options are given, the default mode is to encrypt.
 In this mode single variables that are prefixed with @savv are encrypted. Examples are
