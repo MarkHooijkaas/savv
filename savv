@@ -98,7 +98,7 @@ view_file() {
             secured=${line#*\$(decrypt_str }
             secured=${secured%)}
             value=$(decrypt_str $secured)
-            printf "%s\n" "$line" | sed  -e "s|\$(decrypt_str $secured)|@savv($value)|"
+            printf "%s\n" "$line" | sed  -e "s|\$(decrypt_str $secured)|@savv:encrypt:$value|"
         fi
     done
 }
@@ -140,10 +140,6 @@ while [ ! $# -eq 0 ]; do
         -h|--help)
             show_help
             exit 0
-            ;;
-        -v|--verbose)
-            export VERBOSE=true
-            export INFO=true
             ;;
         -q|--quiet)
             export VERBOSE=false
@@ -193,6 +189,10 @@ elif [[ $SAVV_PASSWORD == @generate ]]; then
     echo enncrypting variables with generated key $SAVV_PASSWORD
 fi
 
+if [[ -z $command ]]; then
+    echo no command specified, try --encrypt, --reverse, --view or --help
+    exit 1
+fi
 
 for file in $@; do
     $command $file
