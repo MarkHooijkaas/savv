@@ -1,5 +1,0 @@
----
-
-domain: kisst.org
- @savvy: password: BadPassword
- @savvy generate: db_password
