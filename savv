@@ -5,7 +5,6 @@
 # You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>
 
 function info()    { ${INFO-true} && printf "%s\n" "$*" || true; }
-function verbose() { ${VERBOSE-false} && printf "%s\n" "$*" || true; }
 function debug()   { ${DEBUG-false} && printf "%s\n" "$*" || true; }
 function error() { echo ERROR 1>&2 $*; exit 1; }
 
@@ -146,7 +145,6 @@ while [ ! $# -eq 0 ]; do
             exit 0
             ;;
         -q|--quiet)
-            export VERBOSE=false
             export INFO=false
             ;;
         -p|--password)
@@ -181,10 +179,11 @@ while [ ! $# -eq 0 ]; do
 done
 
 if [[ -z $SAVV_PASSWORD ]]; then
-    echo SAVV_PASSWORD is not defined, use the following statements
-    printf "  export SAVV_PASSWORD"
-    printf "  read -s SAVV_PASSWORD"
-        exit 1
+    echo SAVV_PASSWORD is not defined, use the --password option
+    echo or the following statements to safely read it from terminal
+    echo "  export SAVV_PASSWORD"
+    echo "  read -s SAVV_PASSWORD"
+    exit 1
 elif [[ $SAVV_PASSWORD == @read ]]; then
     echo enter the password
     read -s SAVV_PASSWORD
