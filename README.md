@@ -2,15 +2,13 @@
 savv can secure (encrypt) variables using just bash and openssl for generic purposes
 
 savv has the following features:
+- easy to use
 - encrypt secrets annotated with @savv:encrypt:<secret>
 - generate and encrypt new secrets with @savv:generate:<length>
 - view encrypted secrets
-- easily reversibly decrypt to edit secrets, while keeping unchanged secrets unchanged
+- reverse encryption (decrypt) to edit secrets, while keeping unchanged secrets unchanged
 
-The last part is tricky.
-If one would just decrypt the file, edit it and re-encrypt, the re-encryption would change the encrypted result even if the secret is unchanged.
-This is not desirable for version control systems like git.
-
+## Syntax
 ```
 Usage: savv [options] <file>...
 
@@ -40,6 +38,11 @@ The decrypt_str is a function with the following defintion
 ```
 
 ## Goals
-* work well with version control system like git
-* be able to edit a file with several secret values
-* automatically generate new passwords
+- work well with version control system like git
+- be able to edit a file with several secret values
+- automatically generate new passwords
+- easily reversibly decrypt to edit secrets, while keeping unchanged secrets unchanged
+
+The last part is tricky.
+If one would just decrypt the file, edit it and re-encrypt, the re-encryption would change the encrypted result even if the secret is unchanged.
+This is not desirable for version control systems like git.
